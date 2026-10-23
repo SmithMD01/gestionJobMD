@@ -8,11 +8,11 @@ async function main() {
   const pool = new Pool({ connectionString: getServerEnv().DATABASE_URL });
 
   try {
-    const result = await pool.query("select to_regclass('public.app_metadata') as table_name");
-    if (result.rows[0]?.table_name !== "app_metadata") {
-      throw new Error("Initial migration has not been applied");
+    const result = await pool.query("select to_regclass('public.app_metadata') as app, to_regclass('public.user') as users, to_regclass('public.session') as sessions, to_regclass('public.two_factor') as two_factor, to_regclass('public.security_event') as audit");
+    if (result.rows[0]?.app !== "app_metadata" || result.rows[0]?.users !== "\"user\"" || result.rows[0]?.sessions !== "session" || result.rows[0]?.two_factor !== "two_factor" || result.rows[0]?.audit !== "security_event") {
+      throw new Error("Required migrations have not been applied");
     }
-    console.log("PostgreSQL connection and initial migration verified.");
+    console.log("PostgreSQL connection and migrations verified.");
   } finally {
     await pool.end();
   }
