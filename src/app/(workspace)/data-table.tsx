@@ -9,16 +9,17 @@ export type TableColumn<T> = {
   className?: string;
 };
 
-export function DataTable<T>({ rows, columns, rowKey, emptyMessage, loading = false }: {
+export function DataTable<T>({ rows, columns, rowKey, emptyMessage, loading = false, className = "" }: {
   rows: T[];
   columns: TableColumn<T>[];
   rowKey: (item: T) => string;
   emptyMessage: string;
   loading?: boolean;
+  className?: string;
 }) {
   return (
     <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
-      <table className="ui-table">
+      <table className={`ui-table ${className}`}>
         <thead><tr>{columns.map((column) => <th key={column.key} scope="col" className={column.className}>{column.label}</th>)}</tr></thead>
         <tbody>
           {loading ? <tr><td colSpan={columns.length} role="status" className="text-muted">Cargando datos…</td></tr>

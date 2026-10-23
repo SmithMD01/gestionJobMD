@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { user } from "@/db/auth-schema";
+import { companyTeamMember } from "@/modules/companies/schema";
 import { requireAdmin } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
-import { project, projectAuditEvent, projectContact } from "@/modules/projects/schema";
+import { activity, developmentStage, project, projectAuditEvent, projectContact } from "@/modules/projects/schema";
 import { formatProjectDate } from "@/modules/projects/constants";
 import { ProjectSections } from "../project-sections";
 import { ProjectStatusSelect } from "../project-status-select";
@@ -27,7 +28,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const [item] = await db.select().from(project).where(and(eq(project.id, id), eq(project.companyId, company.id)));
   if (!item) notFound();
-  const [events, contacts] = await Promise.all([db.select({
+  const [events, contacts, activities, developmentStages, teamMembers] = await Promise.all([db.select({
     id: projectAuditEvent.id,
     action: projectAuditEvent.action,
     createdAt: projectAuditEvent.createdAt,
@@ -38,6 +39,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     .orderBy(desc(projectAuditEvent.createdAt)),
     db.select({ id: projectContact.id, name: projectContact.name, email: projectContact.email, phone: projectContact.phone })
       .from(projectContact).where(eq(projectContact.projectId, id)).orderBy(projectContact.name),
+    db.select().from(activity).where(eq(activity.projectId, id)).orderBy(activity.createdAt),
+    db.select({ id: developmentStage.id, name: developmentStage.name, color: developmentStage.color }).from(developmentStage).where(eq(developmentStage.isActive, true)).orderBy(developmentStage.sortOrder),
+    db.select({ id: companyTeamMember.id, name: companyTeamMember.name, role: companyTeamMember.role }).from(companyTeamMember).where(eq(companyTeamMember.companyId, company.id)).orderBy(companyTeamMember.name),
   ]);
 
   return (
@@ -74,7 +78,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </section>
       </div>
 
-      <ProjectSections projectId={item.id} contacts={contacts} />
+      <ProjectSections projectId={item.id} contacts={contacts} activities={activities} developmentStages={developmentStages} teamMembers={teamMembers} />
 
       <section aria-labelledby="project-history" className="mt-4 rounded-xl border border-line bg-surface p-5 sm:p-6">
         <h2 id="project-history" className="text-base font-semibold">Historial de cambios</h2>

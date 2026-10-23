@@ -1,0 +1,1 @@
+ALTER TABLE "activity" ADD COLUMN "checklist" text DEFAULT '' NOT NULL;

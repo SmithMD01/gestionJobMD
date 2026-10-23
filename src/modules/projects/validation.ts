@@ -25,3 +25,18 @@ export const projectContactInput = z.object({
 }));
 
 export type ProjectContactInput = z.infer<typeof projectContactInput>;
+
+export const activityInput = z.object({
+  title: z.string().trim().min(1).max(160),
+  developmentStageId: z.uuid().nullable().optional(),
+  type: z.enum(["task", "meeting", "coordination", "follow_up", "development", "other"]),
+  status: z.enum(["to_validate", "pending", "in_progress", "blocked", "completed", "cancelled"]),
+  priority: z.number().int().min(1).max(5),
+  activityDate: z.iso.date().nullable(),
+  dueDate: z.iso.date().nullable(),
+  hours: z.number().int().min(0).max(10000).nullable(),
+  observations: z.string().trim().max(5000),
+  checklist: z.string().trim().max(5000),
+  origin: z.enum(["manual", "voice", "email", "meeting", "automation"]),
+  responsibleIds: z.array(z.uuid()).max(20).default([]),
+}).refine((value) => !value.activityDate || !value.dueDate || value.dueDate >= value.activityDate, { path: ["dueDate"], message: "La fecha límite debe ser posterior o igual a la fecha de actividad" });

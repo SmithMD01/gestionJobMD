@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ProjectContacts, type ProjectContact } from "./project-contacts";
+import { ProjectActivities, type ProjectActivity } from "./project-activities";
+import { ProjectDevelopment } from "./project-development";
 
 const sections = [
   { id: "additional", label: "Datos adicionales" },
@@ -17,7 +19,7 @@ function ComingSoon({ children }: { children: string }) {
   return <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5"><p className="text-sm leading-6 text-muted">{children}</p></div>;
 }
 
-export function ProjectSections({ projectId, contacts }: { projectId: string; contacts: ProjectContact[] }) {
+export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[] }) {
   const [active, setActive] = useState<(typeof sections)[number]["id"]>("additional");
 
   return (
@@ -58,16 +60,8 @@ export function ProjectSections({ projectId, contacts }: { projectId: string; co
             <p className="mt-2 text-xs text-subtle">El resumen se calculará cuando se registren actividades y horas.</p>
           </div>
         </>}
-        {section.id === "activities" && <>
-          <h2 className="text-base font-semibold">Actividades</h2>
-          <p className="mt-2 text-sm text-muted">Reuniones, coordinaciones, acuerdos y tareas de seguimiento relacionadas con el proyecto.</p>
-          <div className="mt-4"><ComingSoon>El registro de actividades estará disponible en la siguiente fase.</ComingSoon></div>
-        </>}
-        {section.id === "development" && <>
-          <h2 className="text-base font-semibold">Desarrollo</h2>
-          <p className="mt-2 text-sm text-muted">Actividades relacionadas con programación y trabajo técnico del proyecto.</p>
-          <div className="mt-4"><ComingSoon>Las actividades de desarrollo se mostrarán aquí cuando exista su registro.</ComingSoon></div>
-        </>}
+        {section.id === "activities" && <ProjectActivities projectId={projectId} initialActivities={activities} stages={developmentStages} teamMembers={teamMembers} />}
+        {section.id === "development" && <ProjectDevelopment projectId={projectId} activities={activities} stages={developmentStages} teamMembers={teamMembers} />}
         {section.id === "documentation" && <>
           <h2 className="text-base font-semibold">Documentación</h2>
           <p className="mt-2 text-sm text-muted">Documentos asociados, transcripciones, versiones y revisiones.</p>

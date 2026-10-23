@@ -50,6 +50,34 @@
       "when": 1792785599650,
       "tag": "0006_project_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792788164967,
+      "tag": "0007_activities",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792788601772,
+      "tag": "0008_activity_priority_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792791661898,
+      "tag": "0009_development_stages_team",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792792414778,
+      "tag": "0010_activity_checklist",
+      "breakpoints": true
     }
   ]
 }
