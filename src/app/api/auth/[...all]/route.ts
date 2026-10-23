@@ -11,6 +11,7 @@ const allowedAdminPaths = new Set([
   "/api/auth/admin/list-users",
   "/api/auth/admin/ban-user",
   "/api/auth/admin/unban-user",
+  "/api/auth/admin/update-user",
 ]);
 const guardedPaths = new Set([
   "/api/auth/change-password",
@@ -52,6 +53,15 @@ export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
   const data = (await request.clone().json().catch(() => ({}))) as { userId?: unknown; email?: unknown };
   const action = path.slice("/api/auth/admin/".length);
+  if (action === "update-user") {
+    const body = data as typeof data & { data?: unknown };
+    const fields = body.data && typeof body.data === "object" && !Array.isArray(body.data)
+      ? Object.keys(body.data as Record<string, unknown>) : [];
+    const name = (body.data as { name?: unknown } | undefined)?.name;
+    if (fields.length !== 1 || fields[0] !== "name" || typeof name !== "string" || !name.trim() || name.length > 100) {
+      return Response.json({ error: "Solo se permite actualizar un nombre válido desde esta ruta" }, { status: 400 });
+    }
+  }
   const subject = typeof data.userId === "string" ? data.userId : null;
 
   try {

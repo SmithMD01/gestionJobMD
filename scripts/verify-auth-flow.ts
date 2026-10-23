@@ -6,6 +6,8 @@ import { eq } from "drizzle-orm";
 import { db } from "../src/db/client";
 import { account, user } from "../src/db/auth-schema";
 import { securityEvent } from "../src/db/schema";
+import { project, projectAuditEvent } from "../src/modules/projects/schema";
+import { company, companyMember } from "../src/modules/companies/schema";
 
 config({ path: ".env" });
 
@@ -50,10 +52,12 @@ async function main() {
   const childEmail = `child-${adminId}@example.invalid`;
   const password = randomBytes(24).toString("hex");
   const cookieJar = new Map<string, string>();
+  const projectIds: string[] = [];
+  const companyIds: string[] = [];
 
-  async function request(path: string, body?: object) {
+  async function request(path: string, body?: object, method?: string) {
     const response = await fetch(new URL(path, baseURL), {
-      method: body ? "POST" : "GET",
+      method: method ?? (body ? "POST" : "GET"),
       headers: {
         origin: baseURL!,
         ...(body ? { "content-type": "application/json" } : {}),
@@ -95,6 +99,93 @@ async function main() {
     const afterPage = await request("/users");
     if (afterPage.status !== 200) throw new Error(`Admin page after TOTP failed: ${afterPage.status}`);
 
+    const companyA = await request("/api/companies", { name: "Empresa A de prueba" });
+    if (companyA.status !== 201 || typeof companyA.payload?.company?.id !== "string") {
+      throw new Error(`Company A creation failed: ${companyA.status}`);
+    }
+    const companyAId: string = companyA.payload.company.id;
+    companyIds.push(companyAId);
+
+    const projectData = {
+      name: "Proyecto de prueba",
+      objective: "Verificar el módulo de proyectos",
+      description: "Cuenta y proyecto descartables",
+      status: "planned",
+      startDate: "2026-10-23",
+      endDate: "2026-10-30",
+    };
+    const adminCookiesBeforeProject = new Map(cookieJar);
+    cookieJar.clear();
+    const anonymousProjects = await request("/api/projects");
+    if (anonymousProjects.status !== 401) throw new Error(`Anonymous project access should be 401, got ${anonymousProjects.status}`);
+    const anonymousPage = await request("/projects");
+    if (anonymousPage.status !== 307) throw new Error(`Anonymous project page should redirect, got ${anonymousPage.status}`);
+    for (const [key, value] of adminCookiesBeforeProject) cookieJar.set(key, value);
+
+    const invalidProject = await request("/api/projects", { ...projectData, endDate: "2026-10-22" });
+    if (invalidProject.status !== 400) throw new Error(`Invalid project dates should be rejected, got ${invalidProject.status}`);
+    const createdProject = await request("/api/projects", projectData);
+    if (createdProject.status !== 201 || typeof createdProject.payload?.project?.id !== "string") {
+      throw new Error(`Project creation failed: ${createdProject.status}`);
+    }
+    const createdProjectId: string = createdProject.payload.project.id;
+    projectIds.push(createdProjectId);
+    if (createdProject.payload.project.companyId !== companyAId) throw new Error("Project was not assigned to company A");
+    const projectList = await request("/api/projects");
+    if (projectList.status !== 200 || !projectList.payload?.projects?.some((item: { id: string }) => item.id === createdProjectId)) {
+      throw new Error(`Project listing failed: ${projectList.status}`);
+    }
+    const projectPage = await request(`/projects/${createdProjectId}`);
+    if (projectPage.status !== 200) throw new Error(`Project detail page failed: ${projectPage.status}`);
+    const changedProject = await request(`/api/projects/${createdProjectId}`, { ...projectData, status: "active" }, "PATCH");
+    if (changedProject.status !== 200 || changedProject.payload?.project?.status !== "active") {
+      throw new Error(`Project update failed: ${changedProject.status}`);
+    }
+    const projectEvents = await db.select().from(projectAuditEvent).where(eq(projectAuditEvent.projectId, createdProjectId));
+    if (!projectEvents.some((item) => item.action === "project.created") || !projectEvents.some((item) => item.action === "project.updated")) {
+      throw new Error("Project changes were not audited");
+    }
+
+    const companyB = await request("/api/companies", { name: "Empresa B de prueba" });
+    if (companyB.status !== 201 || typeof companyB.payload?.company?.id !== "string") {
+      throw new Error(`Company B creation failed: ${companyB.status}`);
+    }
+    const companyBId: string = companyB.payload.company.id;
+    companyIds.push(companyBId);
+    const companyBProjects = await request("/api/projects");
+    if (companyBProjects.status !== 200 || companyBProjects.payload?.projects?.length !== 0) {
+      throw new Error("Company B can see company A projects");
+    }
+    const crossCompanyDetail = await request(`/api/projects/${createdProjectId}`);
+    if (crossCompanyDetail.status !== 404) throw new Error(`Cross-company detail should be 404, got ${crossCompanyDetail.status}`);
+    const crossCompanyUpdate = await request(`/api/projects/${createdProjectId}`, projectData, "PATCH");
+    if (crossCompanyUpdate.status !== 404) throw new Error(`Cross-company update should be 404, got ${crossCompanyUpdate.status}`);
+    const createdInB = await request("/api/projects", { ...projectData, name: "Proyecto de empresa B" });
+    if (createdInB.status !== 201 || typeof createdInB.payload?.project?.id !== "string") {
+      throw new Error(`Company B project creation failed: ${createdInB.status}`);
+    }
+    const companyBProjectId: string = createdInB.payload.project.id;
+    projectIds.push(companyBProjectId);
+    if (createdInB.payload.project.companyId !== companyBId) throw new Error("Project was not assigned to company B");
+    const switchedToA = await request("/api/companies/active", { companyId: companyAId });
+    if (switchedToA.status !== 200) throw new Error(`Company switch failed: ${switchedToA.status}`);
+    const companyAProjects = await request("/api/projects");
+    if (companyAProjects.status !== 200 || companyAProjects.payload?.projects?.length !== 1 || companyAProjects.payload.projects[0].id !== createdProjectId) {
+      throw new Error("Company A project list is not isolated");
+    }
+    const crossCompanyPage = await request(`/projects/${companyBProjectId}`);
+    if (crossCompanyPage.status !== 404) throw new Error(`Cross-company page should be 404, got ${crossCompanyPage.status}`);
+    const unauthorizedSwitch = await request("/api/companies/active", { companyId: randomUUID() });
+    if (unauthorizedSwitch.status !== 403) throw new Error(`Unassigned company switch should be 403, got ${unauthorizedSwitch.status}`);
+    const deactivatedCompany = await request(`/api/companies/${companyAId}`, { name: "Empresa A de prueba", isActive: false }, "PATCH");
+    if (deactivatedCompany.status !== 200) throw new Error(`Company deactivation failed: ${deactivatedCompany.status}`);
+    const inactiveProjects = await request("/api/projects");
+    if (inactiveProjects.status !== 409) throw new Error(`Inactive company projects should be unavailable, got ${inactiveProjects.status}`);
+    const inactiveSwitch = await request("/api/companies/active", { companyId: companyAId });
+    if (inactiveSwitch.status !== 403) throw new Error(`Inactive company should not be selectable, got ${inactiveSwitch.status}`);
+    const reactivatedCompany = await request(`/api/companies/${companyAId}`, { name: "Empresa A de prueba", isActive: true }, "PATCH");
+    if (reactivatedCompany.status !== 200) throw new Error(`Company reactivation failed: ${reactivatedCompany.status}`);
+
     const childPassword = randomBytes(24).toString("hex");
     const created = await request("/api/auth/admin/create-user", {
       name: "Temporary user",
@@ -114,6 +205,12 @@ async function main() {
     if (ordinaryAdminAccess.status !== 403) throw new Error(`Ordinary user should not manage users: ${ordinaryAdminAccess.status}`);
     const ordinaryPage = await request("/users");
     if (ordinaryPage.status !== 307) throw new Error(`Ordinary user should be redirected from /users: ${ordinaryPage.status}`);
+    const ordinaryProjectAccess = await request("/api/projects");
+    if (ordinaryProjectAccess.status !== 403) throw new Error(`Ordinary user should not list projects: ${ordinaryProjectAccess.status}`);
+    const ordinaryProjectPage = await request("/projects");
+    if (ordinaryProjectPage.status !== 307) throw new Error(`Ordinary user should be redirected from /projects: ${ordinaryProjectPage.status}`);
+    const ordinarySwitch = await request("/api/companies/active", { companyId: companyAId });
+    if (ordinarySwitch.status !== 403) throw new Error(`Ordinary user should not switch to unassigned company: ${ordinarySwitch.status}`);
     const childCookies = new Map(cookieJar);
     cookieJar.clear();
     for (const [key, value] of adminCookies) cookieJar.set(key, value);
@@ -158,8 +255,16 @@ async function main() {
       throw new Error("Sensitive actions were not recorded in the security audit");
     }
 
-    console.log("Authentication, TOTP, user administration, password change and security audit verified with disposable local accounts.");
+    console.log("Authentication, TOTP, users, company isolation, projects and audits verified with disposable local data.");
   } finally {
+    for (const id of projectIds) {
+      await db.delete(projectAuditEvent).where(eq(projectAuditEvent.projectId, id));
+      await db.delete(project).where(eq(project.id, id));
+    }
+    for (const id of companyIds) {
+      await db.delete(companyMember).where(eq(companyMember.companyId, id));
+      await db.delete(company).where(eq(company.id, id));
+    }
     const child = await db.query.user.findFirst({ where: eq(user.email, childEmail) });
     if (child) await db.delete(securityEvent).where(eq(securityEvent.actorUserId, child.id));
     await db.delete(securityEvent).where(eq(securityEvent.actorUserId, adminId));

@@ -1,6 +1,10 @@
 # Gestión del trabajo
 
-Base del MVP de gestión de proyectos, actividades, horas y documentos. La [planificación](docs/planificacion-mvp.md) define las fases. Esta versión incluye la preparación (Fase 0) y el acceso privado (Fase 1). Los módulos de datos de negocio llegan después.
+Base del MVP multiempresa de gestión de proyectos, actividades, horas y documentos. La [planificación](docs/planificacion-mvp.md) define las fases. Esta versión incluye la preparación (Fase 0), el acceso privado (Fase 1) y el módulo inicial de proyectos (Fase 2).
+
+La interfaz usa una paleta neutra de negro, blanco y grises. El botón **Modo claro / Modo oscuro** está disponible en todas las páginas; la elección se guarda en el navegador. Si aún no hay una elección, se usa la preferencia del sistema. Los colores compartidos se definen en `src/app/globals.css` mediante variables para Tailwind.
+
+El sidebar privado se puede contraer: los iconos de navegación permanecen visibles. El logo se amplía o reduce al pulsarlo, de forma independiente. La marca provisional está en `public/brand.svg`; se puede sustituir por una imagen o GIF cambiando la ruta en `src/app/(workspace)/sidebar.tsx`.
 
 ## Requisitos
 
@@ -32,9 +36,17 @@ La recuperación por correo, el cambio de correo y la sustitución del segundo f
 
 Los accesos y acciones administrativas importantes se registran en `security_event` con actor, acción, usuario afectado y fecha. No se registran contraseñas, códigos TOTP ni enlaces de verificación.
 
+## Proyectos
+
+Primero crea una empresa en `/companies`. El sidebar de las pantallas privadas muestra Inicio y Proyectos; el navbar contiene el selector de empresa activa, el cambio de tema, las notificaciones y un reloj. El perfil al pie del sidebar permite cerrar sesión. El administrador puede crear varias empresas y cambiar entre ellas; cada lista, detalle y edición de proyectos se filtra por la empresa seleccionada. La cookie de selección no concede permisos: el servidor comprueba la pertenencia del usuario a la empresa en cada solicitud.
+
+El administrador puede crear, listar, consultar y editar proyectos en `/projects`. Cada proyecto tiene nombre, objetivo, descripción, estado, fecha de inicio y fecha de fin prevista. Las operaciones de creación y edición quedan registradas en `project_audit_event` dentro de la misma transacción que cambia el proyecto. La interfaz y las rutas `/api/projects` exigen una sesión de administrador con segundo factor activo y pertenencia a la empresa.
+
+El acceso de usuarios comunes a proyectos permanece cerrado hasta definir una regla de visibilidad y asignación. El esquema ya admite pertenencia a varias empresas; la gestión de esas asignaciones para usuarios comunes llegará con la definición de sus permisos. Los estados iniciales son planificado, en curso, en pausa, completado y cancelado. No hay eliminación de proyectos en esta fase.
+
 En otro terminal, `npm run lint`, `npm run typecheck` y `npm run build` verifican el código. `npm run start` sirve el build de producción.
 
-Con la aplicación y PostgreSQL locales en marcha, ejecutar `$env:AUTH_FLOW_TEST='1'; npm run auth:verify-local` en PowerShell para comprobar acceso, TOTP, roles, desactivación y cambio de contraseña. La prueba usa cuentas descartables y las elimina al terminar; se niega a ejecutarse fuera de la base local prevista.
+Con la aplicación y PostgreSQL locales en marcha, ejecutar `$env:AUTH_FLOW_TEST='1'; npm run auth:verify-local` en PowerShell para comprobar acceso, TOTP, roles, desactivación, cambio de contraseña y aislamiento de proyectos entre dos empresas. La prueba usa cuentas, empresas y proyectos descartables y los elimina al terminar; se niega a ejecutarse fuera de la base local prevista.
 
 Los comandos `dev` y `build` usan Webpack: con la versión actual de Next.js, Turbopack falló al lanzar el procesador de Tailwind en este entorno Windows; el build con Webpack sí se verificó.
 
@@ -51,7 +63,9 @@ No hay un comando de reversión automática: antes de desplegar una migración, 
 - `src/app`: interfaz y rutas de Next.js.
 - `src/db`: esquema y cliente de PostgreSQL.
 - `src/lib`: configuración compartida del servidor.
-- `src/modules`: módulos de negocio en fases posteriores.
+- `src/modules`: módulos de negocio.
+- `src/modules/projects`: esquema, validación y autorización del módulo de proyectos.
+- `src/modules/companies`: esquema de empresas y pertenencias y resolución de la empresa activa.
 - `scripts`: comprobaciones operativas.
 
 Antes de exponer el servicio en Internet, configurar un proxy HTTPS que sobrescriba `x-real-ip` con la IP del cliente y no permita acceso directo a la aplicación. Better Auth usa esa cabecera para los límites de intentos. PostgreSQL debe permanecer solo en la red privada del despliegue. `BETTER_AUTH_SECRET` debe ser estable entre reinicios y distinto por entorno.

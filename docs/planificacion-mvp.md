@@ -9,7 +9,7 @@
 
 ## 1. Propósito y alcance
 
-Construir una aplicación personal para gestionar proyectos de trabajo, actividades, horas, documentos y transcripciones. El sistema debe mostrar pendientes y avances, conservar trazabilidad de los cambios y permitir automatizaciones futuras. La primera etapa de ejecución será **preparar el proyecto y desarrollar el acceso**; los demás módulos se incorporarán por fases.
+Construir una aplicación multiempresa para gestionar proyectos de trabajo, actividades, horas, documentos y transcripciones. Cada empresa debe mantener sus datos separados y un usuario con pertenencia a varias empresas podrá cambiar la empresa activa. El sistema debe mostrar pendientes y avances, conservar trazabilidad de los cambios y permitir automatizaciones futuras. La primera etapa de ejecución será **preparar el proyecto y desarrollar el acceso**; los demás módulos se incorporarán por fases.
 
 Este documento distingue los acuerdos tomados de las propuestas y decisiones aún abiertas. El plan maestro original describe un ecosistema más amplio; no ordena implementar todas sus prioridades en el primer MVP.
 
@@ -21,6 +21,7 @@ Este documento distingue los acuerdos tomados de las propuestas y decisiones aú
 4. Documentos y transcripciones: carga, asociación a proyectos, versiones, descarga, revisión y aprobación manual.
 5. Panel básico: pendientes, completadas, vencidas, horas y documentos pendientes de revisión.
 6. Auditoría de acciones importantes, incluida la administración de usuarios y documentos.
+7. Empresas, pertenencias de usuarios y separación de los datos de negocio por empresa.
 
 ### Fuera del primer desarrollo
 
@@ -31,6 +32,8 @@ Dictado de voz, generación documental con IA, integración con correo o calenda
 | Tema | Decisión |
 | --- | --- |
 | Forma de la aplicación | Monolito modular: interfaz, API y reglas de negocio en una aplicación Next.js con TypeScript. Los módulos deben tener límites claros. |
+| Navegación | Sidebar para las pantallas privadas, con Inicio, módulos disponibles y perfil del usuario. Navbar con empresa activa, tema, notificaciones y reloj. |
+| Aislamiento multiempresa | Cada registro de negocio pertenece a una empresa. La selección de empresa se valida contra las pertenencias del usuario en el servidor; una cookie solo expresa la preferencia activa y nunca concede acceso por sí sola. |
 | Automatización | n8n como servicio separado. Cuando corresponda, hablará con la API autenticada de la aplicación. No accederá directamente a las tablas de negocio. |
 | Base de datos | PostgreSQL en Docker, con volumen persistente y migraciones versionadas. Una instancia puede alojar bases y usuarios independientes para la aplicación y n8n. |
 | Archivos | Los binarios estarán en un volumen persistente del servidor; PostgreSQL guardará metadatos, relaciones, versiones y auditoría. Encapsular el acceso a archivos para poder cambiar de almacenamiento en el futuro. |
@@ -70,6 +73,7 @@ n8n ── API autenticada de la aplicación (flujos futuros)
 - El administrador podrá crear, desactivar y gestionar usuarios. El usuario común no podrá administrar cuentas.
 - Toda página, acción y API debe comprobar sesión y autorización **en el servidor**. Ocultar botones en la interfaz no constituye protección.
 - Diseñar la información con autor/propietario y trazabilidad. La regla exacta de visibilidad entre usuarios y proyectos sigue pendiente; hasta definirla, negar acceso a registros ajenos por defecto.
+- Un usuario puede pertenecer a varias empresas; el acceso a datos de una empresa exige comprobar esa pertenencia en cada página y API.
 
 ### Inicio y cierre de sesión
 
@@ -153,13 +157,15 @@ La carga y descarga básica de archivos puede implementarse con capacidades del 
 4. Construir formulario de login, cierre de sesión, página privada mínima y protección del lado del servidor para páginas y API.
 5. Añadir TOTP y códigos de recuperación para el administrador, gestión y revocación de sesiones, y límites de intentos.
 6. Crear un primer módulo interno para alta, listado y desactivación de usuarios. Definir la entrega segura de la contraseña inicial; no enviar contraseñas por correo en texto plano.
-7. Preparar la interfaz de envío de correo, pero no marcar recuperación y cambio de correo como terminados sin proveedor y pruebas reales.
+7. El correo transaccional y su interfaz se aplazan hasta elegir proveedor; recuperación y cambio de correo permanecen deshabilitados.
 
 **Aceptación:** un visitante no autenticado no puede leer ni modificar datos privados; el admin entra con segundo factor, puede cerrar y revocar sesiones y crear/desactivar usuarios; un usuario común no puede usar acciones de administración; las solicitudes excesivas reciben límites; la aplicación puede volver a desplegarse sin perder usuarios ni sesiones de forma inesperada.
 
 ### Fase 2: proyectos
 
 Crear, editar, listar y consultar proyectos con estado, objetivo, descripción y fechas. Añadir comprobaciones de autorización y auditoría. Definir antes de exponerlo a usuarios comunes qué proyectos puede ver cada uno.
+
+**Primer corte:** acceso exclusivo para administradores con segundo factor activo y pertenencia a la empresa seleccionada. Los estados son planificado, en curso, en pausa, completado y cancelado. La asignación y visibilidad para usuarios comunes se decidirán antes de habilitar su acceso.
 
 ### Fase 3: actividades y horas
 

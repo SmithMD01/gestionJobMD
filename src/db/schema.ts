@@ -1,6 +1,8 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export * from "./auth-schema";
+export * from "../modules/projects/schema";
+export * from "../modules/companies/schema";
 
 // Bootstrap table for validating migrations. Business tables are added by their module.
 export const appMetadata = pgTable("app_metadata", {

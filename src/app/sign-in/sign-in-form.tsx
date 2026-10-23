@@ -33,17 +33,17 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <label className="block text-sm font-medium text-slate-700">
+    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-line bg-surface p-6 shadow-sm">
+      <label className="block text-sm font-medium text-muted">
         Correo
-        <input name="email" type="email" autoComplete="username" required className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input name="email" type="email" autoComplete="username" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
       </label>
-      <label className="block text-sm font-medium text-slate-700">
+      <label className="block text-sm font-medium text-muted">
         Contraseña
-        <input name="password" type="password" autoComplete="current-password" required className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input name="password" type="password" autoComplete="current-password" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
       </label>
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <button disabled={pending} className="w-full rounded-md bg-slate-900 px-4 py-2 font-medium text-white disabled:opacity-50">
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <button disabled={pending} className="w-full rounded-md bg-ink px-4 py-2 font-medium text-on-primary disabled:opacity-50">
         {pending ? "Comprobando…" : "Entrar"}
       </button>
     </form>

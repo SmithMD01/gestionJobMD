@@ -33,14 +33,14 @@ export function TwoFactorForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-slate-200 p-6">
+    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-line p-6">
       <label className="block text-sm font-medium">
         {recovery ? "Código de recuperación" : "Código temporal"}
-        <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
       </label>
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <button disabled={pending} className="w-full rounded-md bg-slate-900 px-4 py-2 text-white disabled:opacity-50">Verificar</button>
-      <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }} className="text-sm text-slate-700 underline">
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <button disabled={pending} className="w-full rounded-md bg-ink px-4 py-2 text-on-primary disabled:opacity-50">Verificar</button>
+      <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }} className="text-sm text-muted underline">
         {recovery ? "Usar código temporal" : "Usar código de recuperación"}
       </button>
     </form>
