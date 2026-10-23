@@ -42,9 +42,10 @@ export function ThemeToggle({ compact = false, sidebar = false }: { compact?: bo
       aria-label={theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
       aria-pressed={theme === "dark"}
       title={compact ? theme === "dark" ? "Modo claro" : "Modo oscuro" : undefined}
-      className={compact ? "flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-muted shadow-sm hover:bg-hover hover:text-ink" : sidebar ? "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-hover hover:text-ink" : "rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:bg-hover"}
+      className={compact ? "ui-theme-toggle" : sidebar ? "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-hover hover:text-ink" : "rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover:bg-hover"}
     >
-      {(compact || sidebar) && <UiIcon name={theme === "dark" ? "sun" : "moon"} />}
+      {compact && <span className="ui-theme-toggle-outer"><span className="ui-theme-toggle-inner"><UiIcon name={theme === "dark" ? "sun" : "moon"} /></span></span>}
+      {!compact && sidebar && <UiIcon name={theme === "dark" ? "sun" : "moon"} />}
       {!compact && (theme === "dark" ? "Modo claro" : "Modo oscuro")}
     </button>
   );

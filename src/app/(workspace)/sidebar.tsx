@@ -52,18 +52,18 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
 
   return (
     <aside className={`m-3 shrink-0 rounded-2xl border border-line bg-surface shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-[width] duration-200 md:sticky md:top-3 md:ml-3 md:mr-0 md:flex md:h-[calc(100vh-1.5rem)] md:flex-col ${collapsed ? "md:w-[72px]" : "md:w-56"}`}>
-      <div className={`flex items-center gap-2 px-3 py-3 ${collapsed ? "md:flex-col md:px-2" : ""}`}>
+      <div className={`relative flex items-center gap-2 px-3 py-3 ${collapsed ? "md:flex-col md:px-2" : ""} ${logoExpanded && !collapsed ? "md:flex-col md:gap-2" : ""}`}>
         <button
           type="button"
           onClick={() => setLogoExpanded((value) => !value)}
           aria-label={logoExpanded ? "Reducir logo" : "Ampliar logo"}
           aria-pressed={logoExpanded}
           title={logoExpanded ? "Reducir logo" : "Ampliar logo"}
-          className="shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-ink"
+          className={`shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-ink ${logoExpanded && !collapsed ? "md:mx-auto md:h-44 md:w-44" : ""}`}
         >
-          <Image src="/brand.svg" alt="" width={96} height={96} priority className={`transition-[width,height] duration-200 ${logoExpanded ? collapsed ? "h-12 w-12" : "h-14 w-14" : "h-9 w-9"}`} />
+          <Image src="/brand.svg" alt="" width={96} height={96} priority className={`block aspect-square transition-[width,height] duration-200 ${logoExpanded ? collapsed ? "h-12 w-12" : "h-44 w-44" : "h-9 w-9"}`} />
         </button>
-        {!collapsed && (
+        {!collapsed && !logoExpanded && (
           <Link href="/dashboard" className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-sm font-semibold text-ink">Gestión MD</span>
             <span className="mt-1 block text-xs text-subtle">Job Space</span>
@@ -82,7 +82,7 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
           aria-label={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
           aria-expanded={!collapsed}
           title={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
-          className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-hover md:flex ${collapsed ? "" : "ml-auto"}`}
+          className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-hover md:flex ${logoExpanded && !collapsed ? "absolute right-2 top-2" : collapsed ? "" : "ml-auto"}`}
         ><UiIcon name={collapsed ? "panelOpen" : "panelClose"} /></button>
       </div>
 
