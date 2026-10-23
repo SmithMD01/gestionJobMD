@@ -16,7 +16,7 @@ Este documento distingue los acuerdos tomados de las propuestas y decisiones aú
 ### Incluido en el MVP completo
 
 1. Autenticación y gestión interna de usuarios.
-2. Proyectos: alta, edición, estado, descripción, objetivo y fechas.
+2. Proyectos: alta, edición, estado, descripción, objetivo, fechas y contactos con correo y teléfono.
 3. Actividades: alta, edición, eliminación controlada, proyecto, estado, fecha, horas, observaciones y origen.
 4. Documentos y transcripciones: carga, asociación a proyectos, versiones, descarga, revisión y aprobación manual.
 5. Panel básico: pendientes, completadas, vencidas, horas y documentos pendientes de revisión.
@@ -163,7 +163,7 @@ La carga y descarga básica de archivos puede implementarse con capacidades del 
 
 ### Fase 2: proyectos
 
-Crear, editar, listar y consultar proyectos con estado, objetivo, descripción y fechas. Añadir comprobaciones de autorización y auditoría. Definir antes de exponerlo a usuarios comunes qué proyectos puede ver cada uno.
+Crear, editar, listar y consultar proyectos con estado, objetivo, descripción, fechas y contactos con correo y teléfono. Añadir comprobaciones de autorización y auditoría. Definir antes de exponerlo a usuarios comunes qué proyectos puede ver cada uno.
 
 **Primer corte:** acceso exclusivo para administradores con segundo factor activo y pertenencia a la empresa seleccionada. Los estados son planificado, en curso, en pausa, completado y cancelado. La asignación y visibilidad para usuarios comunes se decidirán antes de habilitar su acceso.
 
