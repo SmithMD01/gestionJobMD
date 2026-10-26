@@ -1,0 +1,1 @@
+ALTER TABLE "project_schedule_item" ADD COLUMN "color" text DEFAULT 'blue' NOT NULL;

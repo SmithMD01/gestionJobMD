@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export type TableColumn<T> = {
   key: string;
   label: string;
-  render: (item: T) => ReactNode;
+  render: (item: T, index: number) => ReactNode;
   className?: string;
 };
 
@@ -24,7 +24,7 @@ export function DataTable<T>({ rows, columns, rowKey, emptyMessage, loading = fa
         <tbody>
           {loading ? <tr><td colSpan={columns.length} role="status" className="text-muted">Cargando datos…</td></tr>
             : rows.length === 0 ? <tr><td colSpan={columns.length} className="text-muted">{emptyMessage}</td></tr>
-              : rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key} className={column.className}>{column.render(row)}</td>)}</tr>)}
+              : rows.map((row, index) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key} className={column.className}>{column.render(row, index)}</td>)}</tr>)}
         </tbody>
       </table>
     </div>
@@ -41,7 +41,7 @@ export function TablePagination({ page, pageSize, total, onPageChange, onPageSiz
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
       <p>{total === 0 ? "0 resultados" : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, total)} de ${total}`}</p>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2">Filas por página

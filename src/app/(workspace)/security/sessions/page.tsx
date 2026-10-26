@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { requireReadySession } from "@/lib/require-session";
@@ -9,8 +8,7 @@ export default async function SessionsPage() {
   const sessions = await auth.api.listSessions({ headers: await headers() });
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <Link href="/dashboard" className="text-sm text-muted underline">Volver</Link>
-      <h1 className="mt-6 text-3xl font-semibold">Mis sesiones</h1>
+      <h1 className="text-3xl font-semibold">Mis sesiones</h1>
       <SessionsPanel initialSessions={sessions} />
     </main>
   );

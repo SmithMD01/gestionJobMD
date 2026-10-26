@@ -25,6 +25,7 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
     { href: "/projects", label: "Proyectos", icon: "projects", visible: role === "admin" && !!twoFactorEnabled },
     { href: "/companies", label: "Empresas", icon: "companies", visible: true },
     { href: "/users", label: "Usuarios", icon: "users", visible: role === "admin" && !!twoFactorEnabled },
+    { href: "/audit", label: "Auditoría", icon: "audit", visible: role === "admin" && !!twoFactorEnabled },
   ];
   const accountLinks: NavLink[] = [
     { href: "/security/sessions", label: "Mis sesiones", icon: "sessions", visible: true },

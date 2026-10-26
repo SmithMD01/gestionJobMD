@@ -4,6 +4,8 @@ import { useState } from "react";
 import { ProjectContacts, type ProjectContact } from "./project-contacts";
 import { ProjectActivities, type ProjectActivity } from "./project-activities";
 import { ProjectDevelopment } from "./project-development";
+import { ProjectSchedule, type ProjectScheduleItem as ProjectScheduleItemType, type ProjectSchedule as ProjectScheduleType } from "./project-schedule";
+import { ProjectFollowUp } from "./project-follow-up";
 
 const sections = [
   { id: "additional", label: "Datos adicionales" },
@@ -19,7 +21,7 @@ function ComingSoon({ children }: { children: string }) {
   return <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5"><p className="text-sm leading-6 text-muted">{children}</p></div>;
 }
 
-export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[] }) {
+export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
   const [active, setActive] = useState<(typeof sections)[number]["id"]>("additional");
 
   return (
@@ -45,20 +47,14 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           aria-controls={`project-panel-${section.id}`}
           tabIndex={active === section.id ? 0 : -1}
           onClick={() => setActive(section.id)}
-          className={`min-h-9 w-full min-w-0 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ink ${active === section.id ? "border-ink bg-ink text-on-primary" : "border-line bg-surface text-muted hover:bg-hover hover:text-ink"}`}
+          className={`min-h-8 w-full min-w-0 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ink ${active === section.id ? "border-ink bg-ink text-on-primary" : "border-line bg-surface text-muted hover:bg-hover hover:text-ink"}`}
         >{section.label}</button>)}
       </div>
 
       {sections.map((section) => <div key={section.id} id={`project-panel-${section.id}`} role="tabpanel" aria-labelledby={`project-tab-${section.id}`} tabIndex={0} hidden={active !== section.id} className="mt-3 rounded-xl border border-line bg-surface p-5 sm:p-6">
         {section.id === "additional" && <>
           <ProjectContacts projectId={projectId} initialContacts={contacts} />
-          <div className="mt-6 border-t border-line pt-5">
-            <h3 className="text-sm font-semibold">Resumen de actividades</h3>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[["Total", "—"], ["Activas", "—"], ["Finalizadas", "—"], ["Horas", "—"]].map(([label, value]) => <div key={label} className="rounded-lg bg-canvas px-3 py-2.5"><p className="text-[11px] text-subtle">{label}</p><p className="mt-1 text-base font-semibold tabular-nums text-ink">{value}</p></div>)}
-            </div>
-            <p className="mt-2 text-xs text-subtle">El resumen se calculará cuando se registren actividades y horas.</p>
-          </div>
+          <ProjectFollowUp activities={activities} scheduleItems={scheduleItems} stages={developmentStages} startDate={projectStartDate} endDate={projectEndDate} />
         </>}
         {section.id === "activities" && <ProjectActivities projectId={projectId} initialActivities={activities} stages={developmentStages} teamMembers={teamMembers} />}
         {section.id === "development" && <ProjectDevelopment projectId={projectId} activities={activities} stages={developmentStages} teamMembers={teamMembers} />}
@@ -72,11 +68,7 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           <p className="mt-2 text-sm text-muted">Casos de prueba, resultados y evidencias vinculados al proyecto.</p>
           <div className="mt-4"><ComingSoon>La estructura de esta sección se definirá al revisar tu archivo de QA.</ComingSoon></div>
         </>}
-        {section.id === "schedule" && <>
-          <h2 className="text-base font-semibold">Cronograma</h2>
-          <p className="mt-2 text-sm text-muted">Planificación del proyecto para crear manualmente o adjuntar y visualizar cuando esté lista.</p>
-          <div className="mt-4"><ComingSoon>La edición y visualización del cronograma están pendientes.</ComingSoon></div>
-        </>}
+        {section.id === "schedule" && <ProjectSchedule projectId={projectId} initialSchedule={schedule} initialItems={scheduleItems} />}
         {section.id === "benchwork" && <>
           <h2 className="text-base font-semibold">Benchwork</h2>
           <p className="mt-2 text-sm text-muted">Espacio de apoyo para preparar documentación con IA a partir de la información del proyecto.</p>

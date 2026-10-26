@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -18,8 +17,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
-      <Link href={`/projects/${item.id}`} className="ui-back-link">Volver al proyecto</Link>
-      <h1 className="mt-6 text-3xl font-semibold">Editar proyecto</h1>
+      <h1 className="text-3xl font-semibold">Editar proyecto</h1>
       <ProjectForm initial={item} />
     </main>
   );

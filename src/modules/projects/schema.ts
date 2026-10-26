@@ -3,6 +3,7 @@ import { user } from "../../db/auth-schema";
 import { company, companyTeamMember } from "../companies/schema";
 
 export const projectStatus = pgEnum("project_status", ["planned", "active", "paused", "completed", "cancelled"]);
+export const projectScheduleStatus = pgEnum("project_schedule_status", ["draft", "confirmed"]);
 export const activityStatus = pgEnum("activity_status", ["to_validate", "pending", "in_progress", "blocked", "completed", "cancelled"]);
 export const activityType = pgEnum("activity_type", ["task", "meeting", "coordination", "follow_up", "development", "other"]);
 export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "email", "meeting", "automation"]);
@@ -71,4 +72,27 @@ export const projectAuditEvent = pgTable("project_audit_event", {
   actorUserId: text("actor_user_id").notNull().references(() => user.id),
   action: text("action").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const projectSchedule = pgTable("project_schedule", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().unique().references(() => project.id),
+  status: projectScheduleStatus("status").notNull().default("draft"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  confirmedBy: text("confirmed_by").references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const projectScheduleItem = pgTable("project_schedule_item", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  scheduleId: uuid("schedule_id").notNull().references(() => projectSchedule.id),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  color: text("color").notNull().default("blue"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

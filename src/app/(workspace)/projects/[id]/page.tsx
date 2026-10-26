@@ -1,24 +1,16 @@
 import Link from "next/link";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { user } from "@/db/auth-schema";
 import { companyTeamMember } from "@/modules/companies/schema";
 import { requireAdmin } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
-import { activity, developmentStage, project, projectAuditEvent, projectContact } from "@/modules/projects/schema";
+import { activity, developmentStage, project, projectContact, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
 import { formatProjectDate } from "@/modules/projects/constants";
 import { ProjectSections } from "../project-sections";
+import type { ProjectScheduleItem as ProjectScheduleItemType } from "../project-schedule";
 import { ProjectStatusSelect } from "../project-status-select";
-
-const projectEventLabel: Record<string, string> = {
-  "project.created": "Proyecto creado",
-  "project.updated": "Proyecto actualizado",
-  "project.contact.created": "Contacto agregado",
-  "project.contact.updated": "Contacto actualizado",
-  "project.contact.deleted": "Contacto eliminado",
-};
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
@@ -28,26 +20,20 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const [item] = await db.select().from(project).where(and(eq(project.id, id), eq(project.companyId, company.id)));
   if (!item) notFound();
-  const [events, contacts, activities, developmentStages, teamMembers] = await Promise.all([db.select({
-    id: projectAuditEvent.id,
-    action: projectAuditEvent.action,
-    createdAt: projectAuditEvent.createdAt,
-    actorName: user.name,
-  }).from(projectAuditEvent)
-    .innerJoin(user, eq(projectAuditEvent.actorUserId, user.id))
-    .where(eq(projectAuditEvent.projectId, id))
-    .orderBy(desc(projectAuditEvent.createdAt)),
+  const [contacts, activities, developmentStages, teamMembers, scheduleRows] = await Promise.all([
     db.select({ id: projectContact.id, name: projectContact.name, email: projectContact.email, phone: projectContact.phone })
       .from(projectContact).where(eq(projectContact.projectId, id)).orderBy(projectContact.name),
     db.select().from(activity).where(eq(activity.projectId, id)).orderBy(activity.createdAt),
     db.select({ id: developmentStage.id, name: developmentStage.name, color: developmentStage.color }).from(developmentStage).where(eq(developmentStage.isActive, true)).orderBy(developmentStage.sortOrder),
     db.select({ id: companyTeamMember.id, name: companyTeamMember.name, role: companyTeamMember.role }).from(companyTeamMember).where(eq(companyTeamMember.companyId, company.id)).orderBy(companyTeamMember.name),
+    db.select().from(projectSchedule).where(eq(projectSchedule.projectId, id)),
   ]);
+  const schedule = scheduleRows[0] ?? null;
+  const scheduleItems = schedule ? await db.select().from(projectScheduleItem).where(eq(projectScheduleItem.scheduleId, schedule.id)).orderBy(projectScheduleItem.sortOrder) : [];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <Link href="/projects" className="ui-back-link">Volver a proyectos</Link>
-      <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-subtle">{company.name}</p>
           <h1 className="mt-1 break-words text-2xl font-semibold text-ink sm:text-3xl">{item.name}</h1>
@@ -78,17 +64,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </section>
       </div>
 
-      <ProjectSections projectId={item.id} contacts={contacts} activities={activities} developmentStages={developmentStages} teamMembers={teamMembers} />
+      <ProjectSections projectId={item.id} contacts={contacts} activities={activities} developmentStages={developmentStages} teamMembers={teamMembers} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, color: row.color as ProjectScheduleItemType["color"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
 
-      <section aria-labelledby="project-history" className="mt-4 rounded-xl border border-line bg-surface p-5 sm:p-6">
-        <h2 id="project-history" className="text-base font-semibold">Historial de cambios</h2>
-        {events.length === 0 ? <p className="mt-4 text-sm text-muted">Aún no hay cambios registrados.</p> : <ol className="mt-4 divide-y divide-line">
-          {events.map((event) => <li key={event.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3 text-sm first:pt-0 last:pb-0">
-            <span className="text-ink">{projectEventLabel[event.action] ?? "Cambio registrado"}<span className="ml-2 text-muted">por {event.actorName}</span></span>
-            <time dateTime={event.createdAt.toISOString()} className="text-xs text-subtle">{event.createdAt.toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}</time>
-          </li>)}
-        </ol>}
-      </section>
     </main>
   );
 }

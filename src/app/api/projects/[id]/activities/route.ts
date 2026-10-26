@@ -4,7 +4,9 @@ import { db } from "@/db/client";
 import { authorizeProjectRequest } from "@/modules/projects/authorization";
 import { projectInCompany } from "@/modules/projects/access";
 import { activity, activityResponsible, projectAuditEvent } from "@/modules/projects/schema";
+import { auditEvent } from "@/modules/audit/schema";
 import { activityInput } from "@/modules/projects/validation";
+import { createdDetail } from "@/modules/audit/details";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -31,6 +33,7 @@ export async function POST(request: Request, { params }: Context) {
     const [item] = await tx.insert(activity).values({ id: activityId, code: `${prefix}-${activityId.slice(0, 8).toUpperCase()}`, projectId: id, createdBy: access.session!.user.id, ...activityValues }).returning();
     if (responsibleIds.length) await tx.insert(activityResponsible).values(responsibleIds.map((teamMemberId) => ({ activityId, teamMemberId })));
     await tx.insert(projectAuditEvent).values({ projectId: id, actorUserId: access.session!.user.id, action: "activity.created" });
+    await tx.insert(auditEvent).values({ companyId: access.company!.id, actorUserId: access.session!.user.id, entityType: "activity", entityId: item.id, entityName: item.title, action: "activity.created", changeDetail: createdDetail("la actividad", `${item.code} — ${item.title}`) });
     return item;
   });
   return Response.json({ activity: { ...created, responsibleIds: parsed.data.responsibleIds } }, { status: 201 });

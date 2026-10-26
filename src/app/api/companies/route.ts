@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db/client";
 import { company, companyMember } from "@/modules/companies/schema";
 import { ACTIVE_COMPANY_COOKIE, companiesForUser, companyCookieOptions } from "@/modules/companies/context";
+import { auditEvent } from "@/modules/audit/schema";
+import { createdDetail } from "@/modules/audit/details";
 
 const companyInput = z.object({ name: z.string().trim().min(1).max(120) });
 
@@ -25,6 +27,7 @@ export async function POST(request: Request) {
   const created = await db.transaction(async (tx) => {
     const [newCompany] = await tx.insert(company).values({ name: parsed.data.name, createdBy: session.user.id }).returning();
     await tx.insert(companyMember).values({ companyId: newCompany.id, userId: session.user.id });
+    await tx.insert(auditEvent).values({ companyId: newCompany.id, actorUserId: session.user.id, entityType: "company", entityId: newCompany.id, entityName: newCompany.name, action: "company.created", changeDetail: createdDetail("la empresa", newCompany.name) });
     return newCompany;
   });
   (await cookies()).set(ACTIVE_COMPANY_COOKIE, created.id, companyCookieOptions());

@@ -1,0 +1,177 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { CreateDialog } from "../create-dialog";
+import { DataTable, type TableColumn } from "../data-table";
+import { RowActions } from "../row-actions";
+
+export type ProjectSchedule = { id: string; status: "draft" | "confirmed"; confirmedAt: string | null };
+export type ProjectScheduleItem = { id: string; title: string; description: string; color: "slate" | "blue" | "violet" | "amber" | "green" | "rose"; startDate: string | null; endDate: string | null; sortOrder: number };
+
+const scheduleColors = {
+  slate: { label: "Gris", bar: "bg-slate-500", dot: "bg-slate-500" },
+  blue: { label: "Azul", bar: "bg-blue-500", dot: "bg-blue-500" },
+  violet: { label: "Violeta", bar: "bg-violet-500", dot: "bg-violet-500" },
+  amber: { label: "Ámbar", bar: "bg-amber-500", dot: "bg-amber-500" },
+  green: { label: "Verde", bar: "bg-green-500", dot: "bg-green-500" },
+  rose: { label: "Rojo", bar: "bg-rose-500", dot: "bg-rose-500" },
+} as const;
+
+function formatDate(value: string | null) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString("es-PE") : "—"; }
+function draftId() { return `draft-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`; }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dateAtMidnight(value: string) { return new Date(`${value}T00:00:00`); }
+function dayKey(value: Date) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; }
+function addDays(value: Date, amount: number) { const next = new Date(value); next.setDate(next.getDate() + amount); return next; }
+function dayDifference(start: Date, end: Date) { return Math.round((end.getTime() - start.getTime()) / DAY_MS); }
+
+function csvCell(value: string | number | null) { return `"${String(value ?? "").replaceAll('"', '""')}"`; }
+function exportSchedule(items: ProjectScheduleItem[], projectId: string) {
+  const rows = [
+    ["Orden", "Etapa o actividad", "Inicio", "Fin", "Color", "Descripción"],
+    ...items.map((item, index) => [String(index + 1), item.title, item.startDate ?? "", item.endDate ?? "", scheduleColors[item.color]?.label ?? "", item.description]),
+  ];
+  const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`;
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `cronograma-${projectId.slice(0, 8)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function ScheduleGantt({ items }: { items: ProjectScheduleItem[] }) {
+  const [density, setDensity] = useState<"compact" | "comfortable">("compact");
+  const dayWidth = density === "compact" ? 26 : 34;
+  const datedItems = items.filter((item) => item.startDate || item.endDate);
+  if (!datedItems.length) return <div className="mt-4 rounded-lg border border-dashed border-line bg-canvas px-4 py-5 text-sm text-muted">Añade fechas a las filas para visualizar el cronograma en Gantt.</div>;
+
+  const dates = datedItems.flatMap((item) => [item.startDate, item.endDate].filter((date): date is string => Boolean(date)).map(dateAtMidnight));
+  const firstDate = new Date(Math.min(...dates.map((date) => date.getTime())));
+  const lastDate = new Date(Math.max(...dates.map((date) => date.getTime())));
+  const timelineDays = dayDifference(firstDate, lastDate) + 1;
+  const timelineWidth = timelineDays * dayWidth;
+  const timeline = Array.from({ length: timelineDays }, (_, index) => addDays(firstDate, index));
+  const months = timeline.reduce<Array<{ key: string; label: string; days: number }>>((groups, date) => {
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const current = groups.at(-1);
+    if (current?.key === key) current.days += 1;
+    else groups.push({ key, label: date.toLocaleDateString("es-PE", { month: "long", year: "numeric" }), days: 1 });
+    return groups;
+  }, []);
+  const rowsWithoutDates = items.filter((item) => !item.startDate && !item.endDate);
+
+  return <div className="mt-4 space-y-4">
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface pb-2">
+      <div style={{ minWidth: `${timelineWidth + 190}px` }}>
+        <div className="grid border-b border-line bg-canvas" style={{ gridTemplateColumns: `minmax(11rem, 14rem) ${timelineWidth}px` }}>
+          <div className="sticky left-0 z-30 border-r border-line bg-canvas px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">Etapa o actividad</div>
+          <div>
+            <div className="flex h-7 border-b border-line">{months.map((month) => <div key={month.key} style={{ width: `${month.days * dayWidth}px` }} className="shrink-0 border-r border-line px-2 py-1 text-[10px] font-semibold capitalize text-subtle">{month.label}</div>)}</div>
+            <div className="flex h-9">{timeline.map((date) => <div key={dayKey(date)} style={{ width: `${dayWidth}px` }} className="shrink-0 border-r border-line px-1 py-1 text-center text-[10px] leading-4 text-muted"><span className="block font-semibold text-ink">{date.getDate()}</span><span>{date.toLocaleDateString("es-PE", { weekday: "short" }).replace(".", "")}</span></div>)}</div>
+          </div>
+        </div>
+        {datedItems.map((item) => {
+          const start = dateAtMidnight(item.startDate ?? item.endDate!);
+          const end = dateAtMidnight(item.endDate ?? item.startDate!);
+          const offset = dayDifference(firstDate, start);
+          const duration = dayDifference(start, end) + 1;
+          return <div key={item.id} className="grid min-h-12 border-b border-line last:border-b-0" style={{ gridTemplateColumns: `minmax(11rem, 14rem) ${timelineWidth}px` }}>
+            <div className="sticky left-0 z-20 flex min-w-0 items-center border-r border-line bg-surface px-3 py-2"><span className="truncate text-xs font-medium text-ink" title={item.title}>{item.title}</span></div>
+            <div className="relative flex items-center" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${dayWidth - 1}px, var(--color-line) ${dayWidth - 1}px, var(--color-line) ${dayWidth}px)` }}>
+              <span title={`${item.title}: ${formatDate(item.startDate ?? item.endDate)} – ${formatDate(item.endDate ?? item.startDate)}${item.description ? ` · ${item.description}` : ""}`} className={`absolute z-10 h-6 min-w-3 rounded-md px-2 text-[10px] leading-6 text-on-primary shadow-sm ${scheduleColors[item.color]?.bar ?? scheduleColors.blue.bar}`} style={{ left: `${offset * dayWidth + 2}px`, width: `${Math.max(duration * dayWidth - 4, 12)}px` }} />
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>
+    {rowsWithoutDates.length > 0 && <div className="rounded-lg border border-dashed border-line bg-canvas px-3 py-2 text-xs text-muted"><span className="font-semibold text-ink">Sin fechas:</span> {rowsWithoutDates.map((item) => item.title).join(", ")}</div>}
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted"><span>Escala: {density === "compact" ? "más información visible" : "más espacio por día"}</span><button type="button" onClick={() => setDensity((value) => value === "compact" ? "comfortable" : "compact")} className="ui-button ui-button-secondary !px-3 !py-1.5 !text-xs">Cambiar escala</button></div>
+  </div>;
+}
+
+function ScheduleRowForm({ initial, onSaved, onPendingChange }: { initial?: ProjectScheduleItem; onSaved: (item: ProjectScheduleItem) => void; onPendingChange: (value: boolean) => void }) {
+  const [error, setError] = useState("");
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const startDate = String(form.get("startDate") || "") || null;
+    const endDate = String(form.get("endDate") || "") || null;
+    if (startDate && endDate && endDate < startDate) { setError("La fecha final debe ser igual o posterior a la fecha inicial."); return; }
+    onPendingChange(true);
+    onSaved({ id: initial?.id ?? draftId(), title: String(form.get("title") ?? "").trim(), description: String(form.get("description") ?? "").trim(), color: (String(form.get("color") || "blue") as ProjectScheduleItem["color"]), startDate, endDate, sortOrder: initial?.sortOrder ?? 0 });
+    onPendingChange(false);
+  }
+  return <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+    <label className="block text-sm font-medium sm:col-span-2">Nombre de la fila<input name="title" required maxLength={180} defaultValue={initial?.title ?? ""} className="ui-field mt-1 block" placeholder="Ej. Desarrollo de módulo" /></label>
+    <label className="block text-sm font-medium">Color<select name="color" defaultValue={initial?.color ?? "blue"} className="ui-field mt-1 block">{Object.entries(scheduleColors).map(([value, color]) => <option key={value} value={value}>{color.label}</option>)}</select></label>
+    <label className="block text-sm font-medium">Fecha de inicio<input name="startDate" type="date" defaultValue={initial?.startDate ?? ""} className="ui-field mt-1 block" /></label>
+    <label className="block text-sm font-medium">Fecha final<input name="endDate" type="date" defaultValue={initial?.endDate ?? ""} className="ui-field mt-1 block" /></label>
+    <label className="block text-sm font-medium sm:col-span-2">Descripción<textarea name="description" maxLength={2000} rows={3} defaultValue={initial?.description ?? ""} className="ui-field mt-1 block" placeholder="Notas opcionales de esta etapa" /></label>
+    {error && <p role="alert" className="text-sm text-danger sm:col-span-2">{error}</p>}
+    <button className="ui-button ui-button-primary sm:col-span-2">{initial ? "Guardar fila" : "Añadir fila"}</button>
+  </form>;
+}
+
+export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { projectId: string; initialSchedule: ProjectSchedule | null; initialItems: ProjectScheduleItem[] }) {
+  const [schedule, setSchedule] = useState(initialSchedule);
+  const [items, setItems] = useState(initialItems);
+  const [draftItems, setDraftItems] = useState(initialItems);
+  const [editing, setEditing] = useState(false);
+  const [rowEditor, setRowEditor] = useState<ProjectScheduleItem | null | undefined>(undefined);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [view, setView] = useState<"table" | "gantt">("table");
+
+  function beginEditing() { setDraftItems(items.map((item, index) => ({ ...item, sortOrder: index }))); setError(""); setEditing(true); }
+  function cancelEditing() { setDraftItems(items); setError(""); setEditing(false); }
+  function saveRow(item: ProjectScheduleItem) {
+    setDraftItems((current) => rowEditor ? current.map((row) => row.id === item.id ? { ...item, sortOrder: row.sortOrder } : row) : [...current, { ...item, sortOrder: current.length }]);
+    setRowEditor(undefined);
+  }
+  function moveRow(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= draftItems.length) return;
+    setDraftItems((current) => current.map((item, itemIndex) => itemIndex === index ? current[target] : itemIndex === target ? current[index] : item).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
+  }
+  function removeRow(id: string) { setDraftItems((current) => current.filter((item) => item.id !== id).map((item, index) => ({ ...item, sortOrder: index }))); }
+
+  async function saveSchedule() {
+    if (!draftItems.length) { setError("Añade al menos una fila antes de guardar el cronograma."); return; }
+    setPending(true); setError("");
+    try {
+      const response = await fetch(`/api/projects/${projectId}/schedule`, { method: schedule ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: draftItems.map(({ title, description, color, startDate, endDate }) => ({ title, description, color, startDate, endDate })) }) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.schedule) throw new Error(result?.error || "No se pudo guardar el cronograma.");
+      setSchedule({ id: result.schedule.id, status: result.schedule.status, confirmedAt: result.schedule.confirmedAt });
+      setItems(result.items ?? []); setDraftItems(result.items ?? []); setEditing(false);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No se pudo guardar el cronograma."); }
+    finally { setPending(false); }
+  }
+
+  const readOnlyColumns: TableColumn<ProjectScheduleItem>[] = [
+    { key: "order", label: "#", className: "w-12", render: (_item, index) => index + 1 } as TableColumn<ProjectScheduleItem>,
+    { key: "title", label: "Etapa o actividad", render: (item) => <span className="flex items-center gap-2 font-medium text-ink"><span className={`size-2 shrink-0 rounded-full ${scheduleColors[item.color]?.dot ?? scheduleColors.blue.dot}`} aria-hidden="true" />{item.title}</span> },
+    { key: "start", label: "Inicio", render: (item) => formatDate(item.startDate) },
+    { key: "end", label: "Fin", render: (item) => formatDate(item.endDate) },
+    { key: "description", label: "Descripción", render: (item) => <span className="block max-w-sm truncate text-muted" title={item.description || "—"}>{item.description || "—"}</span> },
+  ];
+  const editableColumns: TableColumn<ProjectScheduleItem>[] = [
+    ...readOnlyColumns,
+    { key: "actions", label: "Acciones", render: (item) => { const index = draftItems.findIndex((row) => row.id === item.id); return <div className="flex items-center justify-end gap-1"><button type="button" onClick={() => moveRow(index, -1)} disabled={index <= 0} aria-label={`Mover ${item.title} arriba`} className="ui-icon-button disabled:opacity-40">↑</button><button type="button" onClick={() => moveRow(index, 1)} disabled={index >= draftItems.length - 1} aria-label={`Mover ${item.title} abajo`} className="ui-icon-button disabled:opacity-40">↓</button><RowActions label={item.title} actions={[{ label: "Editar", onSelect: () => setRowEditor(item) }, { label: "Eliminar", tone: "danger", onSelect: () => removeRow(item.id) }]} /></div>; } },
+  ];
+
+  return <div className="mt-4">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{schedule && !editing && <button type="button" onClick={() => exportSchedule(items, projectId)} className="ui-button ui-button-success">Exportar para Excel</button>}{schedule && !editing && <button type="button" onClick={beginEditing} className="ui-button ui-button-secondary">Editar cronograma</button>}{!schedule && !editing && <button type="button" onClick={() => setEditing(true)} className="ui-button ui-button-primary">Crear cronograma</button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><button type="button" onClick={() => setView("table")} aria-pressed={view === "table"} className={`rounded-md px-3 py-1.5 text-xs ${view === "table" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Tabla</button><button type="button" onClick={() => setView("gantt")} aria-pressed={view === "gantt"} className={`rounded-md px-3 py-1.5 text-xs ${view === "gantt" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Gantt</button></div>}</div></div>
+    {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
+    {editing ? <>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><button type="button" onClick={() => setRowEditor(null)} className="ui-button ui-button-secondary">Añadir fila</button></div>
+      <DataTable className="!text-xs" rows={draftItems} columns={editableColumns} rowKey={(item) => item.id} emptyMessage="Añade la primera fila del cronograma." />
+      <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={cancelEditing} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void saveSchedule()} disabled={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : "Guardar cronograma"}</button></div>
+    </> : <>
+      {view === "table" ? <DataTable className="!text-xs" rows={items} columns={readOnlyColumns} rowKey={(item) => item.id} emptyMessage="Aún no hay filas en el cronograma." /> : <ScheduleGantt items={items} />}
+    </>}
+    <CreateDialog title={rowEditor ? "Editar fila del cronograma" : "Añadir fila al cronograma"} triggerLabel="Añadir fila" open={rowEditor !== undefined} onOpenChange={(open) => { if (!open) setRowEditor(undefined); }} showTrigger={false}><ScheduleRowForm initial={rowEditor ?? undefined} onSaved={saveRow} onPendingChange={() => undefined} /></CreateDialog>
+  </div>;
+}

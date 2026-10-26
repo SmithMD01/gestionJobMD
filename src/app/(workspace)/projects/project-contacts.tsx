@@ -138,9 +138,15 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
   }
 
   return <>
+    <details open className="group/contacts">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-line bg-canvas px-3 py-2.5 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        <span>Contactos del proyecto <span className="ml-1 text-xs font-normal text-subtle">({contacts.length})</span></span>
+        <span aria-hidden="true" className="text-xs text-muted transition-transform group-open/contacts:rotate-180">⌄</span>
+      </summary>
+      <div className="mt-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 className="text-base font-semibold">Contactos del proyecto</h2><p className="mt-1 text-xs text-subtle">Personas relacionadas con este proyecto.</p></div>
-      <button type="button" onClick={openCreate} className="ui-button ui-button-primary w-full !min-h-9 !px-3 !text-xs sm:w-auto">Agregar contacto</button>
+      <div><p className="text-xs text-subtle">Personas relacionadas con este proyecto.</p></div>
+      <button type="button" onClick={openCreate} className="ui-button ui-button-primary w-full !px-3 !text-xs sm:w-auto">Agregar contacto</button>
     </div>
     {copyMessage && <p role="status" aria-live="polite" className="mt-3 text-xs text-muted">{copyMessage}</p>}
     {contacts.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas px-4 py-5 text-sm text-muted">Todavía no hay contactos registrados.</p> : <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -169,6 +175,8 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
         </li>;
       })}
     </ul>}
+      </div>
+    </details>
 
     <CreateDialog title={editing ? "Editar contacto" : "Agregar contacto"} triggerLabel="Agregar contacto" open={editorOpen} onOpenChange={(open) => { if (!open && !formPending) { setEditorOpen(false); setEditing(null); } }} busy={formPending} showTrigger={false}>
       {editorOpen && <ContactForm key={editing?.id ?? "new-contact"} projectId={projectId} initial={editing ?? undefined} onSaved={saveContact} onPendingChange={setFormPending} />}

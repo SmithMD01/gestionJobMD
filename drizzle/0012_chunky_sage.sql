@@ -1,0 +1,1 @@
+ALTER TABLE "audit_event" ADD COLUMN "change_detail" text DEFAULT '' NOT NULL;
