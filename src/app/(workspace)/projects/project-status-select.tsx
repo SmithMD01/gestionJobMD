@@ -54,7 +54,7 @@ export function ProjectStatusSelect({ project }: { project: ProjectData }) {
 
   return (
     <div>
-      <label className="flex min-h-8 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-xs text-ink focus-within:outline-2 focus-within:outline-ink">
+      <label className="flex min-h-8 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-xs text-ink focus-within:outline-2 focus-within:outline-accent">
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDot[status]}`} aria-hidden="true" />
         <span className="sr-only">Estado del proyecto</span>
         <select value={status} disabled={pending} onChange={(event) => void updateStatus(event.target.value as ProjectStatus)} aria-busy={pending} className="max-w-36 cursor-pointer bg-transparent font-medium focus:outline-none disabled:cursor-wait">

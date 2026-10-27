@@ -53,7 +53,7 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           aria-controls={`project-panel-${section.id}`}
           tabIndex={active === section.id ? 0 : -1}
           onClick={() => setActive(section.id)}
-          className={`min-h-8 w-full min-w-0 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ink ${active === section.id ? "border-ink bg-ink text-on-primary" : "border-line bg-surface text-muted hover:bg-hover hover:text-ink"}`}
+          className={`min-h-8 w-full min-w-0 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${active === section.id ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-muted hover:bg-accent-soft hover:text-accent-strong"}`}
         >{section.label}</button>)}
       </div>
 

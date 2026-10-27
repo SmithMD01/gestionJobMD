@@ -43,7 +43,7 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
         aria-current={active ? "page" : undefined}
         aria-label={collapsed ? item.label : undefined}
         title={collapsed ? item.label : undefined}
-        className={`mx-1 flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium transition-colors ${collapsed ? "md:justify-center md:px-0" : ""} ${active ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"}`}
+        className={`mx-1 flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium transition-colors ${collapsed ? "md:justify-center md:px-0" : ""} ${active ? "bg-accent-soft text-accent-strong" : "text-muted hover:bg-accent-soft hover:text-accent-strong"}`}
       >
         <UiIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
         {!collapsed && <span className="truncate">{item.label}</span>}
@@ -60,7 +60,7 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
           aria-label={logoExpanded ? "Reducir logo" : "Ampliar logo"}
           aria-pressed={logoExpanded}
           title={logoExpanded ? "Reducir logo" : "Ampliar logo"}
-          className={`shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-ink ${logoExpanded && !collapsed ? "md:mx-auto md:h-44 md:w-44" : ""}`}
+          className={`shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-accent ${logoExpanded && !collapsed ? "md:mx-auto md:h-44 md:w-44" : ""}`}
         >
           <Image src="/brand.svg" alt="" width={96} height={96} priority className={`block aspect-square transition-[width,height] duration-200 ${logoExpanded ? collapsed ? "h-12 w-12" : "h-44 w-44" : "h-9 w-9"}`} />
         </button>

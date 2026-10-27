@@ -84,9 +84,9 @@ export function DataTable<T>({
   const paginationDisabled = serverPagination?.disabled ?? false;
 
   return (
-    <section>
+    <section className="min-w-0">
       {toolbar && <div className="mt-8 flex flex-wrap items-end gap-3">{toolbar}</div>}
-      <div className={`mt-4 overflow-x-auto rounded-xl border border-line bg-surface ${containerClassName}`}>
+      <div className={`mt-4 min-w-0 overflow-x-auto rounded-xl border border-line bg-surface ${containerClassName}`}>
         <table className={`ui-table ${className}`}>
           <thead><tr>{columns.map((column) => <th key={column.key} scope="col" className={column.className}>{column.label}</th>)}</tr></thead>
           <tbody>
