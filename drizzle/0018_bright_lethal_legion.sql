@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "project_document_final_type_uidx" ON "project_document" USING btree ("project_id","group_id","type_id") WHERE "project_document"."is_final" = true;

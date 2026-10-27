@@ -2,11 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { CompanyMemberSelector, type AssignableUser } from "./company-member-selector";
 
-export function CompanyForm({ onCreated, onPendingChange }: { onCreated: () => void; onPendingChange?: (pending: boolean) => void }) {
+export function CompanyForm({ users, currentUserId, onCreated, onPendingChange }: { users: AssignableUser[]; currentUserId: string; onCreated: () => void; onPendingChange?: (pending: boolean) => void }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [memberIds, setMemberIds] = useState([currentUserId]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,7 +20,7 @@ export function CompanyForm({ onCreated, onPendingChange }: { onCreated: () => v
       const response = await fetch("/api/companies", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, memberIds }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -40,6 +42,7 @@ export function CompanyForm({ onCreated, onPendingChange }: { onCreated: () => v
       <label className="block text-sm font-medium">Nombre de la empresa
         <input name="name" required maxLength={120} className="ui-field mt-1 block" />
       </label>
+      <CompanyMemberSelector users={users} selectedIds={memberIds} currentUserId={currentUserId} onChange={setMemberIds} />
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">
         {pending ? "Creando…" : "Crear empresa"}

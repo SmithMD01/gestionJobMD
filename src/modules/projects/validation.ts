@@ -14,6 +14,15 @@ export const projectInput = z.object({
 
 export type ProjectInput = z.infer<typeof projectInput>;
 
+export const projectModuleInput = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).default(""),
+  parentId: z.uuid().nullable().optional(),
+  sortOrder: z.number().int().min(0).max(10000).default(0),
+});
+
+export type ProjectModuleInput = z.infer<typeof projectModuleInput>;
+
 export const projectContactInput = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.union([z.string().trim().max(254).email(), z.literal("")]).nullable().optional(),
@@ -29,6 +38,7 @@ export type ProjectContactInput = z.infer<typeof projectContactInput>;
 export const activityInput = z.object({
   title: z.string().trim().min(1).max(160),
   developmentStageId: z.uuid().nullable().optional(),
+  moduleId: z.uuid().nullable().optional(),
   type: z.enum(["task", "meeting", "coordination", "follow_up", "development", "other"]),
   status: z.enum(["to_validate", "pending", "in_progress", "blocked", "completed", "cancelled"]),
   priority: z.number().int().min(1).max(5),

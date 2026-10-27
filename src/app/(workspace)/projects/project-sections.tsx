@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { ProjectContacts, type ProjectContact } from "./project-contacts";
+import type { ProjectContact } from "./project-contacts";
 import { ProjectActivities, type ProjectActivity } from "./project-activities";
 import { ProjectDevelopment } from "./project-development";
 import { ProjectSchedule, type ProjectScheduleItem as ProjectScheduleItemType, type ProjectSchedule as ProjectScheduleType } from "./project-schedule";
 import { ProjectFollowUp } from "./project-follow-up";
+import type { ProjectModule } from "./project-modules";
+import { ProjectConfiguration } from "./project-configuration";
+import { ProjectDocumentation, type ProjectDocument } from "./project-documentation";
+import { formatProjectDate } from "@/modules/projects/constants";
 
 const sections = [
-  { id: "additional", label: "Datos adicionales" },
+  { id: "information", label: "Información proyecto" },
   { id: "activities", label: "Actividades" },
   { id: "development", label: "Desarrollo" },
+  { id: "configuration", label: "Configuración proyecto" },
   { id: "documentation", label: "Documentación" },
   { id: "qa", label: "Pruebas QA" },
   { id: "schedule", label: "Cronograma" },
@@ -21,8 +26,9 @@ function ComingSoon({ children }: { children: string }) {
   return <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5"><p className="text-sm leading-6 text-muted">{children}</p></div>;
 }
 
-export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
-  const [active, setActive] = useState<(typeof sections)[number]["id"]>("additional");
+export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
+  const [active, setActive] = useState<(typeof sections)[number]["id"]>("information");
+  const [projectModules, setProjectModules] = useState(modules);
 
   return (
     <section className="mt-6" aria-label="Secciones del proyecto">
@@ -37,7 +43,7 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           setActive(next.id);
           document.getElementById(`project-tab-${next.id}`)?.focus();
         }
-      }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 lg:grid-cols-7">
+      }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 xl:grid-cols-8">
         {sections.map((section) => <button
           key={section.id}
           id={`project-tab-${section.id}`}
@@ -52,17 +58,17 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
       </div>
 
       {sections.map((section) => <div key={section.id} id={`project-panel-${section.id}`} role="tabpanel" aria-labelledby={`project-tab-${section.id}`} tabIndex={0} hidden={active !== section.id} className="mt-3 rounded-xl border border-line bg-surface p-5 sm:p-6">
-        {section.id === "additional" && <>
-          <ProjectContacts projectId={projectId} initialContacts={contacts} />
-          <ProjectFollowUp activities={activities} scheduleItems={scheduleItems} stages={developmentStages} startDate={projectStartDate} endDate={projectEndDate} />
+        {section.id === "information" && <>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]">
+            <section aria-labelledby="project-summary" className="rounded-xl border border-line bg-canvas p-5 sm:p-6"><h2 id="project-summary" className="text-base font-semibold">Objetivo y descripción</h2><dl className="mt-4 space-y-4"><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Objetivo</dt><dd className="mt-1.5 whitespace-pre-wrap text-xs leading-5 text-ink">{projectObjective}</dd></div><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Descripción</dt><dd className={`mt-1.5 whitespace-pre-wrap text-xs leading-5 ${projectDescription ? "text-ink" : "text-muted"}`}>{projectDescription || "Aún no se ha añadido una descripción."}</dd></div></dl></section>
+            <section aria-labelledby="project-details" className="rounded-xl border border-line bg-canvas p-5 sm:p-6"><h2 id="project-details" className="text-base font-semibold">Datos del proyecto</h2><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4"><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Fecha de inicio</dt><dd className="mt-1 text-xs text-ink">{formatProjectDate(projectStartDate)}</dd></div><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Fin previsto</dt><dd className="mt-1 text-xs text-ink">{formatProjectDate(projectEndDate)}</dd></div><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Creado el</dt><dd className="mt-1 text-xs text-ink">{projectCreatedAt.toLocaleDateString("es-PE")}</dd></div><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Última actualización</dt><dd className="mt-1 text-xs text-ink">{projectUpdatedAt.toLocaleDateString("es-PE")}</dd></div></dl></section>
+          </div>
+          <ProjectFollowUp activities={activities} scheduleItems={scheduleItems} stages={developmentStages} modules={projectModules} startDate={projectStartDate} endDate={projectEndDate} />
         </>}
         {section.id === "activities" && <ProjectActivities projectId={projectId} initialActivities={activities} stages={developmentStages} teamMembers={teamMembers} />}
-        {section.id === "development" && <ProjectDevelopment projectId={projectId} activities={activities} stages={developmentStages} teamMembers={teamMembers} />}
-        {section.id === "documentation" && <>
-          <h2 className="text-base font-semibold">Documentación</h2>
-          <p className="mt-2 text-sm text-muted">Documentos asociados, transcripciones, versiones y revisiones.</p>
-          <div className="mt-4"><ComingSoon>Aún no hay documentos ni transcripciones asociados.</ComingSoon></div>
-        </>}
+        {section.id === "development" && <ProjectDevelopment projectId={projectId} activities={activities} stages={developmentStages} teamMembers={teamMembers} modules={projectModules} />}
+        {section.id === "configuration" && <ProjectConfiguration projectId={projectId} contacts={contacts} modules={projectModules} activities={activities} stages={developmentStages} onModulesChange={setProjectModules} />}
+        {section.id === "documentation" && <ProjectDocumentation projectId={projectId} initialDocuments={documents} />}
         {section.id === "qa" && <>
           <h2 className="text-base font-semibold">Pruebas QA</h2>
           <p className="mt-2 text-sm text-muted">Casos de prueba, resultados y evidencias vinculados al proyecto.</p>

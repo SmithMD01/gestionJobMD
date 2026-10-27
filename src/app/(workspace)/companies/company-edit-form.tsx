@@ -2,30 +2,36 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { CompanyMemberSelector, type AssignableUser } from "./company-member-selector";
 
-export function CompanyEditForm({ companyId, initialName, initialActive, onSaved, onPendingChange }: {
+export function CompanyEditForm({ companyId, initialName, initialActive, initialMemberIds, users, currentUserId, onSaved, onPendingChange }: {
   companyId: string;
   initialName: string;
   initialActive: boolean;
+  initialMemberIds: string[];
+  users: AssignableUser[];
+  currentUserId: string;
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [memberIds, setMemberIds] = useState(() => [...new Set([...initialMemberIds, currentUserId])]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     onPendingChange?.(true);
     setError("");
-    const name = String(new FormData(event.currentTarget).get("name") ?? "").trim();
-    const isActive = new FormData(event.currentTarget).get("isActive") === "true";
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("name") ?? "").trim();
+    const isActive = formData.get("isActive") === "true";
     try {
       const response = await fetch(`/api/companies/${companyId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, isActive }),
+        body: JSON.stringify({ name, isActive, memberIds }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -52,6 +58,7 @@ export function CompanyEditForm({ companyId, initialName, initialActive, onSaved
       </select>
       <span className="mt-1 block text-xs text-muted">Las empresas inactivas no aparecen en el selector de empresas.</span>
     </label>
+    <CompanyMemberSelector users={users} selectedIds={memberIds} currentUserId={currentUserId} onChange={setMemberIds} />
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">
       {pending ? "Guardando…" : "Guardar cambios"}

@@ -4,7 +4,7 @@ import { ViewDetailsDialog } from "../view-details-dialog";
 import { activityCode, StatusBadge, typeLabels, type ProjectActivity } from "./project-activities";
 import { parseChecklist } from "@/modules/projects/checklist";
 
-export function ProjectActivityDetail({ activity, stageName, open, onOpenChange, checklistPending = false, onToggleChecklist, onEdit, onDelete }: { activity: ProjectActivity | null; stageName?: string; open: boolean; onOpenChange: (open: boolean) => void; checklistPending?: boolean; onToggleChecklist?: (index: number) => void; onEdit?: () => void; onDelete?: () => void }) {
+export function ProjectActivityDetail({ activity, stageName, moduleName, open, onOpenChange, checklistPending = false, onToggleChecklist, onEdit, onDelete }: { activity: ProjectActivity | null; stageName?: string; moduleName?: string; open: boolean; onOpenChange: (open: boolean) => void; checklistPending?: boolean; onToggleChecklist?: (index: number) => void; onEdit?: () => void; onDelete?: () => void }) {
   if (!activity) return null;
   const checklist = parseChecklist(activity.checklist);
   return <ViewDetailsDialog title="Detalle de actividad" open={open} onOpenChange={onOpenChange}>
@@ -13,7 +13,8 @@ export function ProjectActivityDetail({ activity, stageName, open, onOpenChange,
       <div className="grid gap-4 sm:grid-cols-2">
         <div><p className="text-xs uppercase tracking-wide text-subtle">Tipo</p><p className="mt-1 text-ink">{typeLabels[activity.type]}</p></div>
         {activity.type !== "development" && <div><p className="text-xs uppercase tracking-wide text-subtle">Estado</p><p className="mt-1 text-ink"><StatusBadge status={activity.status} /></p></div>}
-        <div><p className="text-xs uppercase tracking-wide text-subtle">Prioridad</p><p className="mt-1 text-ink">{activity.priority}/5</p></div>
+        <div><p className="text-xs uppercase tracking-wide text-subtle">Prioridad</p><p className="mt-1 text-ink">P{activity.priority}</p></div>
+        {moduleName && <div><p className="text-xs uppercase tracking-wide text-subtle">Módulo</p><p className="mt-1 text-ink">{moduleName}</p></div>}
         {stageName && <div><p className="text-xs uppercase tracking-wide text-subtle">Etapa de desarrollo</p><p className="mt-1 text-ink">{stageName}</p></div>}
         <div><p className="text-xs uppercase tracking-wide text-subtle">Fecha de actividad</p><p className="mt-1 text-ink">{activity.activityDate || "Sin fecha"}</p></div>
         <div><p className="text-xs uppercase tracking-wide text-subtle">Fecha límite</p><p className="mt-1 text-ink">{activity.dueDate || "Sin fecha"}</p></div>

@@ -1,12 +1,15 @@
-import { boolean, date, integer, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, date, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { user } from "../../db/auth-schema";
 import { company, companyTeamMember } from "../companies/schema";
+
 
 export const projectStatus = pgEnum("project_status", ["planned", "active", "paused", "completed", "cancelled"]);
 export const projectScheduleStatus = pgEnum("project_schedule_status", ["draft", "confirmed"]);
 export const activityStatus = pgEnum("activity_status", ["to_validate", "pending", "in_progress", "blocked", "completed", "cancelled"]);
 export const activityType = pgEnum("activity_type", ["task", "meeting", "coordination", "follow_up", "development", "other"]);
 export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "email", "meeting", "automation"]);
+export const documentationStatus = pgEnum("documentation_status", ["draft", "in_review", "approved", "archived"]);
 export const developmentStage = pgTable("development_stage", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull().unique(),
@@ -31,6 +34,18 @@ export const project = pgTable("project", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const projectModule = pgTable("project_module", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => project.id),
+  parentId: uuid("parent_id").references((): AnyPgColumn => projectModule.id),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const projectContact = pgTable("project_contact", {
   id: uuid("id").defaultRandom().primaryKey(),
   projectId: uuid("project_id").notNull().references(() => project.id),
@@ -41,12 +56,32 @@ export const projectContact = pgTable("project_contact", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const projectDocument = pgTable("project_document", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => project.id),
+  groupId: text("group_id").notNull(),
+  typeId: text("type_id").notNull(),
+  title: text("title").notNull(),
+  version: integer("version").notNull().default(1),
+  status: documentationStatus("status").notNull().default("draft"),
+  isFinal: boolean("is_final").notNull().default(false),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileData: text("file_data").notNull(),
+  notes: text("notes").notNull().default(""),
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("project_document_final_type_uidx").on(table.projectId, table.groupId, table.typeId).where(sql`${table.isFinal} = true`)]);
+
 export const activity = pgTable("activity", {
   id: uuid("id").defaultRandom().primaryKey(),
   projectId: uuid("project_id").notNull().references(() => project.id),
   title: text("title").notNull(),
   code: text("code").notNull().default(""),
   developmentStageId: uuid("development_stage_id").references(() => developmentStage.id),
+  moduleId: uuid("module_id").references(() => projectModule.id),
   type: activityType("type").notNull().default("task"),
   status: activityStatus("status").notNull().default("pending"),
   priority: integer("priority").notNull().default(3),

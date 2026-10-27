@@ -17,5 +17,5 @@ export function parseChecklist(value: string | null | undefined): ChecklistItem[
 }
 
 export function serializeChecklist(items: ChecklistItem[]) {
-  return JSON.stringify(items);
+  return JSON.stringify(items.map((item) => ({ text: item.text.trim(), done: item.done })).filter((item) => item.text.length > 0));
 }

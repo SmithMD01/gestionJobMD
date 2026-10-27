@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 
 export function SignInForm() {
@@ -33,17 +34,18 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-line bg-surface p-6 shadow-sm">
-      <label className="block text-sm font-medium text-muted">
-        Correo
-        <input name="email" type="email" autoComplete="username" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
+    <form onSubmit={submit} className="mt-7 space-y-4">
+      <label className="block text-xs font-semibold text-muted">
+        Correo electrónico
+        <input name="email" type="email" autoComplete="username" required className="ui-field mt-1.5 block" />
       </label>
-      <label className="block text-sm font-medium text-muted">
+      <label className="block text-xs font-semibold text-muted">
         Contraseña
-        <input name="password" type="password" autoComplete="current-password" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
+        <input name="password" type="password" autoComplete="current-password" required className="ui-field mt-1.5 block" />
       </label>
+      <div className="flex justify-end"><Link href="/forgot-password" className="text-xs font-medium text-muted underline underline-offset-4 hover:text-ink">¿Olvidaste tu contraseña?</Link></div>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} className="w-full rounded-md bg-ink px-4 py-2 font-medium text-on-primary disabled:opacity-50">
+      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary w-full !min-h-10">
         {pending ? "Comprobando…" : "Entrar"}
       </button>
     </form>

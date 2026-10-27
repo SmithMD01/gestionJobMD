@@ -9,10 +9,12 @@ import { RowActions } from "../row-actions";
 import { ViewDetailsDialog } from "../view-details-dialog";
 import { CompanyForm } from "./company-form";
 import { CompanyEditForm } from "./company-edit-form";
+import { CompanyMemberSettingsForm } from "./company-member-settings-form";
+import type { AssignableUser, CompanyMember } from "./company-member-selector";
 
-type CompanyRow = { id: string; name: string; isActive: boolean };
+type CompanyRow = { id: string; name: string; isActive: boolean; memberIds: string[]; memberNames: string[]; members: CompanyMember[] };
 
-export function CompaniesPanel({ companies, activeId, canCreate }: { companies: CompanyRow[]; activeId?: string; canCreate: boolean }) {
+export function CompaniesPanel({ companies, activeId, canManage, users, currentUserId }: { companies: CompanyRow[]; activeId?: string; canManage: boolean; users: AssignableUser[]; currentUserId: string }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -23,16 +25,19 @@ export function CompaniesPanel({ companies, activeId, canCreate }: { companies: 
   const [createdMessage, setCreatedMessage] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyRow | null>(null);
   const [editingCompany, setEditingCompany] = useState<CompanyRow | null>(null);
+  const [editingMember, setEditingMember] = useState<{ companyId: string; member: CompanyMember } | null>(null);
+  const [memberPending, setMemberPending] = useState(false);
   const [actionError, setActionError] = useState("");
   const filtered = useMemo(() => companies.filter((item) => item.name.toLocaleLowerCase("es-PE").includes(query.trim().toLocaleLowerCase("es-PE"))), [companies, query]);
   const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const columns: TableColumn<CompanyRow>[] = [
-    { key: "name", label: "Empresa", className: "w-[55%]", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
-    { key: "status", label: "Estado", className: "w-[30%]", render: (item) => item.isActive ? (item.id === activeId ? "Activa · Seleccionada" : "Activa") : (item.id === activeId ? "Inactiva · Seleccionada" : "Inactiva") },
+    { key: "name", label: "Empresa", className: "w-[40%]", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+    { key: "members", label: "Usuarios", className: "w-[20%]", render: (item) => `${item.memberNames.length} asignado${item.memberNames.length === 1 ? "" : "s"}` },
+    { key: "status", label: "Estado", className: "w-[25%]", render: (item) => item.isActive ? (item.id === activeId ? "Activa · Seleccionada" : "Activa") : (item.id === activeId ? "Inactiva · Seleccionada" : "Inactiva") },
     { key: "actions", label: "Acciones", className: "w-[15%]", render: (item) => <RowActions label={item.name} actions={[
       { label: "Ver detalle", onSelect: () => setSelectedCompany(item) },
-      ...(canCreate ? [{ label: "Editar", onSelect: () => setEditingCompany(item) }] : []),
-      ...(canCreate && item.isActive ? [{ label: item.id === activeId ? "Ver proyectos" : "Abrir proyectos", onSelect: () => void openProjects(item) }] : []),
+      ...(canManage ? [{ label: "Editar", onSelect: () => setEditingCompany(item) }] : []),
+      ...(canManage && item.isActive ? [{ label: item.id === activeId ? "Ver proyectos" : "Abrir proyectos", onSelect: () => void openProjects(item) }] : []),
     ]} /> },
   ];
 
@@ -61,7 +66,7 @@ export function CompaniesPanel({ companies, activeId, canCreate }: { companies: 
   return (
     <>
       <ModuleHeader title="Empresas" description="Cada empresa mantiene sus proyectos separados. Solo puedes elegir empresas a las que perteneces." action={
-        canCreate && <CreateDialog title="Nueva empresa" triggerLabel="Nueva empresa" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><CompanyForm onPendingChange={setCreatePending} onCreated={() => { setCreatedMessage("Empresa creada correctamente."); setPage(0); setCreateOpen(false); }} /></CreateDialog>
+        canManage && <CreateDialog title="Nueva empresa" triggerLabel="Nueva empresa" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><CompanyForm users={users} currentUserId={currentUserId} onPendingChange={setCreatePending} onCreated={() => { setCreatedMessage("Empresa creada correctamente."); setPage(0); setCreateOpen(false); }} /></CreateDialog>
       } />
       {createdMessage && <p role="status" className="mt-4 text-sm text-success">{createdMessage}</p>}
       <ModuleToolbar>
@@ -76,10 +81,19 @@ export function CompaniesPanel({ companies, activeId, canCreate }: { companies: 
         {selectedCompany && <dl className="grid gap-4 sm:grid-cols-2">
           <div><dt className="text-sm text-muted">Nombre</dt><dd className="mt-1 font-medium">{selectedCompany.name}</dd></div>
           <div><dt className="text-sm text-muted">Estado</dt><dd className="mt-1 font-medium">{selectedCompany.isActive ? (selectedCompany.id === activeId ? "Activa · Seleccionada" : "Activa") : "Inactiva"}</dd></div>
+          <div className="sm:col-span-2"><dt className="text-sm text-muted">Usuarios asignados</dt><dd className="mt-2 space-y-2">
+            {selectedCompany.members.length === 0 ? <span className="text-sm text-muted">Sin usuarios asignados</span> : selectedCompany.members.map((member) => <div key={member.id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
+              <span className="min-w-0"><span className="block truncate text-sm font-medium text-ink">{member.name}</span><span className="block truncate text-xs text-muted">{member.email} · {member.banned ? "Acceso inactivo" : "Acceso activo"}{member.visibleInActivityAssignments ? " · Visible en actividades" : " · No visible en actividades"}</span></span>
+              {canManage && <button type="button" className="ui-button ui-button-secondary !px-2.5 !py-1.5 !text-xs" onClick={() => { setSelectedCompany(null); setEditingMember({ companyId: selectedCompany.id, member }); }}>Configurar</button>}
+            </div>)}
+          </dd></div>
         </dl>}
       </ViewDetailsDialog>
       <CreateDialog title="Editar empresa" triggerLabel="Editar empresa" showTrigger={false} open={editingCompany !== null} onOpenChange={(open) => { if (!open) setEditingCompany(null); }} busy={editPending}>
-        {editingCompany && <CompanyEditForm companyId={editingCompany.id} initialName={editingCompany.name} initialActive={editingCompany.isActive} onPendingChange={setEditPending} onSaved={() => { setEditingCompany(null); setCreatedMessage("Empresa actualizada correctamente."); }} />}
+        {editingCompany && <CompanyEditForm companyId={editingCompany.id} initialName={editingCompany.name} initialActive={editingCompany.isActive} initialMemberIds={editingCompany.memberIds} users={users} currentUserId={currentUserId} onPendingChange={setEditPending} onSaved={() => { setEditingCompany(null); setCreatedMessage("Empresa actualizada correctamente."); }} />}
+      </CreateDialog>
+      <CreateDialog title="Configuración del usuario en la empresa" triggerLabel="Configurar usuario" showTrigger={false} open={editingMember !== null} onOpenChange={(open) => { if (!open) setEditingMember(null); }} busy={memberPending}>
+        {editingMember && <CompanyMemberSettingsForm companyId={editingMember.companyId} member={editingMember.member} onPendingChange={setMemberPending} onSaved={() => { setEditingMember(null); setCreatedMessage("Configuración del usuario actualizada."); }} />}
       </CreateDialog>
     </>
   );

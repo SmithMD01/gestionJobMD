@@ -33,14 +33,14 @@ export function TwoFactorForm() {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-line p-6">
-      <label className="block text-sm font-medium">
+    <form onSubmit={submit} className="mt-7 space-y-4">
+      <label className="block text-xs font-semibold text-muted">
         {recovery ? "Código de recuperación" : "Código temporal"}
-        <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
+        <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="ui-field mt-1.5 block text-center tracking-[0.25em]" />
       </label>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} className="w-full rounded-md bg-ink px-4 py-2 text-on-primary disabled:opacity-50">Verificar</button>
-      <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }} className="text-sm text-muted underline">
+      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary w-full !min-h-10">{pending ? "Verificando…" : "Verificar"}</button>
+      <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }} className="w-full text-center text-xs font-medium text-muted underline underline-offset-4 hover:text-ink">
         {recovery ? "Usar código temporal" : "Usar código de recuperación"}
       </button>
     </form>

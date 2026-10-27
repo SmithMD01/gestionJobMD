@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CreateDialog } from "../create-dialog";
 import { ActivityForm, activityCode, type ProjectActivity } from "./project-activities";
+import type { ProjectModule } from "./project-modules";
 import { RowActions } from "../row-actions";
 import { ProjectActivityDetail } from "./project-activity-detail";
 import { parseChecklist, serializeChecklist } from "@/modules/projects/checklist";
@@ -14,7 +15,7 @@ function stageColor(color: string) {
   return ({ blue: "bg-blue-500", violet: "bg-violet-500", amber: "bg-amber-500", green: "bg-green-500", neutral: "bg-slate-400" }[color] ?? "bg-slate-400");
 }
 
-export function ProjectDevelopment({ projectId, activities: initialActivities, stages, teamMembers }: { projectId: string; activities: ProjectActivity[]; stages: Stage[]; teamMembers: TeamMember[] }) {
+export function ProjectDevelopment({ projectId, activities: initialActivities, stages, teamMembers, modules }: { projectId: string; activities: ProjectActivity[]; stages: Stage[]; teamMembers: TeamMember[]; modules: ProjectModule[] }) {
   const [view, setView] = useState<"table" | "kanban">("kanban");
   const [showCancelled, setShowCancelled] = useState(false);
   const [activities, setActivities] = useState(initialActivities);
@@ -25,8 +26,10 @@ export function ProjectDevelopment({ projectId, activities: initialActivities, s
   const [pending, setPending] = useState(false);
   const [checklistPending, setChecklistPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all");
 
-  const development = activities.filter((item) => item.type === "development" && (showCancelled || item.status !== "cancelled"));
+  const moduleNames = useMemo(() => new Map(modules.map((module) => [module.id, module.name])), [modules]);
+  const development = activities.filter((item) => item.type === "development" && (showCancelled || item.status !== "cancelled") && (moduleFilter === "all" || item.moduleId === moduleFilter));
   const visibleStages = showCancelled ? [...stages, { id: "cancelled", name: "Canceladas", color: "neutral" }] : stages;
 
   function saved(item: ProjectActivity) {
@@ -86,22 +89,24 @@ export function ProjectDevelopment({ projectId, activities: initialActivities, s
       </div>
     </div>
 
+    {modules.length > 0 && <div className="mt-3 max-w-xs"><label className="block text-xs font-medium text-subtle">Filtrar por módulo<select value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)} className="ui-field mt-1 block"><option value="all">Todos los módulos</option>{modules.map((module) => <option key={module.id} value={module.id}>{module.parentId ? "↳ " : ""}{module.name}</option>)}</select></label></div>}
+
     {view === "table" ? <div className="mt-4 overflow-x-auto rounded-xl border border-line">
-      <table className="ui-table !text-xs"><thead><tr><th>Código</th><th>Actividad</th><th>Etapa</th><th>Fechas</th><th>Responsables</th><th>Acciones</th></tr></thead>
-        <tbody>{development.length === 0 ? <tr><td colSpan={6} className="text-muted">No hay actividades de desarrollo.</td></tr> : development.map((item) => <tr key={item.id}>
-          <td className="font-mono text-xs text-muted">{activityCode(item)}</td><td className="font-medium text-ink">{item.title}</td><td><span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${stageColor(stages.find((stage) => stage.id === item.developmentStageId)?.color ?? "neutral")}`} />{stages.find((stage) => stage.id === item.developmentStageId)?.name ?? "Sin etapa"}</span></td>
+      <table className="ui-table !text-xs"><thead><tr><th>Código</th><th>Actividad</th><th>Módulo</th><th>Etapa</th><th>Fechas</th><th>Responsables</th><th>Acciones</th></tr></thead>
+        <tbody>{development.length === 0 ? <tr><td colSpan={7} className="text-muted">No hay actividades de desarrollo.</td></tr> : development.map((item) => <tr key={item.id}>
+          <td><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-primary">{activityCode(item)}</span></td><td className="font-medium text-ink">{item.title}</td><td className="text-muted">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</td><td><span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${stageColor(stages.find((stage) => stage.id === item.developmentStageId)?.color ?? "neutral")}`} />{stages.find((stage) => stage.id === item.developmentStageId)?.name ?? "Sin etapa"}</span></td>
           <td>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</td><td>{item.responsibleNames?.join(", ") || "—"}</td><td><RowActions label={item.title} actions={[{ label: "Ver detalle", onSelect: () => { setDetail(item); setDetailSource("table"); } }, { label: "Editar", onSelect: () => setEditor(item) }, { label: "Eliminar", tone: "danger", onSelect: () => { setError(""); setDeleting(item); } }]} /></td>
         </tr>)}</tbody>
       </table>
     </div> : <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
       {visibleStages.map((stage) => <section key={stage.id} className="w-64 shrink-0 rounded-lg border border-line bg-canvas p-3"><h3 className="flex items-center gap-2 text-xs font-semibold text-ink"><span className={`size-2 rounded-full ${stageColor(stage.color)}`} />{stage.name}</h3><div className="mt-3 space-y-2">
-        {development.filter((item) => (stage.id === "cancelled" ? item.status === "cancelled" : item.developmentStageId === stage.id)).map((item) => <article key={item.id} role="button" tabIndex={0} onClick={() => { setDetail(item); setDetailSource("kanban"); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetail(item); setDetailSource("kanban"); } }} className="cursor-pointer rounded-md border border-line bg-surface p-2.5 text-xs transition-colors hover:border-ink/40 hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink"><p className="font-medium text-ink">{activityCode(item)} · {item.title}</p><p className="mt-1 text-subtle">{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</p><p className="mt-1 text-subtle">{item.responsibleNames?.join(", ") || "Sin responsables"}</p></article>)}
+        {development.filter((item) => (stage.id === "cancelled" ? item.status === "cancelled" : item.developmentStageId === stage.id)).map((item) => <article key={item.id} role="button" tabIndex={0} onClick={() => { setDetail(item); setDetailSource("kanban"); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetail(item); setDetailSource("kanban"); } }} className="cursor-pointer rounded-md border border-line bg-surface p-2.5 text-xs transition-colors hover:border-ink/40 hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink"><p className="flex flex-wrap items-center gap-1.5"><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold text-on-primary">{activityCode(item)}</span><span className="font-medium text-ink">{item.title}</span></p><p className="mt-1 text-subtle">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</p><p className="mt-1 text-subtle">{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</p><p className="mt-1 text-subtle">{item.responsibleNames?.join(", ") || "Sin responsables"}</p></article>)}
       </div></section>)}
     </div>}
 
-    <ProjectActivityDetail activity={detail} stageName={detail ? stages.find((stage) => stage.id === detail.developmentStageId)?.name : undefined} open={detail !== null} onOpenChange={(open) => { if (!open) { setDetail(null); setDetailSource(null); } }} checklistPending={checklistPending !== null} onToggleChecklist={(index) => void toggleChecklist(index)} onEdit={detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setEditor(detail); } } : undefined} onDelete={detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setError(""); setDeleting(detail); } } : undefined} />
+    <ProjectActivityDetail activity={detail} stageName={detail ? stages.find((stage) => stage.id === detail.developmentStageId)?.name : undefined} moduleName={detail ? moduleNames.get(detail.moduleId ?? "") : undefined} open={detail !== null} onOpenChange={(open) => { if (!open) { setDetail(null); setDetailSource(null); } }} checklistPending={checklistPending !== null} onToggleChecklist={(index) => void toggleChecklist(index)} onEdit={detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setEditor(detail); } } : undefined} onDelete={detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setError(""); setDeleting(detail); } } : undefined} />
     <CreateDialog title={editor ? "Editar actividad de desarrollo" : "Crear actividad de desarrollo"} triggerLabel="Crear actividad" open={editor !== undefined} onOpenChange={(open) => { if (!open && !pending) setEditor(undefined); }} busy={pending} showTrigger={false}>
-      <ActivityForm projectId={projectId} initial={editor ?? undefined} stages={stages} teamMembers={teamMembers} developmentOnly onSaved={saved} onPendingChange={setPending} />
+      <ActivityForm projectId={projectId} initial={editor ?? undefined} stages={stages} modules={modules} teamMembers={teamMembers} developmentOnly onSaved={saved} onPendingChange={setPending} />
     </CreateDialog>
     <CreateDialog title="Eliminar actividad" triggerLabel="Eliminar actividad" open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending} showTrigger={false}>
       {deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(null)} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void remove()} disabled={pending} className="ui-button ui-button-danger">{pending ? "Eliminando…" : "Eliminar actividad"}</button></div></div>}

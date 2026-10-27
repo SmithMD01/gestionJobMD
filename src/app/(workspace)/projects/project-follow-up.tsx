@@ -4,6 +4,7 @@ import type { ProjectActivity } from "./project-activities";
 import type { ProjectScheduleItem } from "./project-schedule";
 
 type Stage = { id: string; name: string; color: string };
+type ProjectModule = { id: string; parentId: string | null; name: string };
 
 function dateKey(value: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
@@ -56,7 +57,17 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
   </article>;
 }
 
-export function ProjectFollowUp({ activities, scheduleItems, stages, startDate, endDate }: { activities: ProjectActivity[]; scheduleItems: ProjectScheduleItem[]; stages: Stage[]; startDate: string | null; endDate: string | null }) {
+function ModuleKpi({ module, activities, stages }: { module: ProjectModule; activities: ProjectActivity[]; stages: Stage[] }) {
+  const active = activities.filter((item) => item.type === "development" && item.moduleId === module.id && item.status !== "cancelled");
+  const positions = new Map(stages.map((stage, index) => [stage.id, index]));
+  const lastPosition = Math.max(stages.length - 1, 0);
+  const pending = stages.length ? active.filter((item) => (positions.get(item.developmentStageId ?? "") ?? 0) < lastPosition).length : active.length;
+  const completed = active.length - pending;
+  const progress = active.length && stages.length > 1 ? Math.round(active.reduce((total, item) => total + ((positions.get(item.developmentStageId ?? "") ?? 0) / lastPosition) * 100, 0) / active.length) : 0;
+  return <article className="rounded-lg border border-line bg-canvas px-3 py-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-ink" title={module.name}>{module.name}</p><span className="shrink-0 text-[10px] text-subtle">{active.length} total</span></div><div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Realizadas</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{completed}</p></div><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Pendientes</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{pending}</p></div></div><div className="mt-3"><div className="flex items-center justify-between text-[10px]"><span className="text-subtle">Avance por etapas</span><span className="font-semibold tabular-nums text-ink">{progress}%</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-ink" style={{ width: `${progress}%` }} /></div></div></article>;
+}
+
+export function ProjectFollowUp({ activities, scheduleItems, stages, modules, startDate, endDate }: { activities: ProjectActivity[]; scheduleItems: ProjectScheduleItem[]; stages: Stage[]; modules: ProjectModule[]; startDate: string | null; endDate: string | null }) {
   const today = dateKey(new Date());
   const datedSchedule = scheduleItems.filter((item) => item.startDate || item.endDate).toSorted((left, right) => (left.startDate ?? left.endDate ?? "9999").localeCompare(right.startDate ?? right.endDate ?? "9999"));
   const currentStage = datedSchedule.find((item) => (item.startDate ?? item.endDate!) <= today && (item.endDate ?? item.startDate!) >= today) ?? null;
@@ -71,6 +82,7 @@ export function ProjectFollowUp({ activities, scheduleItems, stages, startDate, 
   return <section className="mt-6 border-t border-line pt-5" aria-labelledby="project-follow-up">
     <div><h3 id="project-follow-up" className="text-sm font-semibold">Seguimiento del proyecto</h3><p className="mt-1 text-xs text-subtle">Indicadores separados para actividades, desarrollo y cronograma.</p></div>
     <div className="mt-4 grid gap-3 lg:grid-cols-2"><ActivityGroup title="Actividades" items={generalActivities} development={false} stages={stages} /><ActivityGroup title="Desarrollo" items={developmentActivities} development={true} stages={stages} /></div>
+    <div className="mt-3"><div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold text-ink">Seguimiento de desarrollo por módulo</h4><p className="mt-1 text-xs text-subtle">Las pendientes son actividades que aún no están en la última etapa de desarrollo.</p></div></div>{modules.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{modules.map((module) => <ModuleKpi key={module.id} module={module} activities={developmentActivities} stages={stages} />)}</div> : <p className="mt-3 rounded-lg border border-dashed border-line px-3 py-3 text-xs text-subtle">Crea módulos desde la configuración del proyecto para ver estos indicadores.</p>}</div>
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
       <div className="rounded-lg border border-line bg-canvas px-3 py-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-ink">Avance temporal del proyecto</p><span className="text-xs font-semibold tabular-nums text-ink">{projectProgress === null ? "—" : `${projectProgress}%`}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-success" style={{ width: `${projectProgress ?? 0}%` }} /></div><p className="mt-2 text-[11px] text-subtle">{startDate && endDate ? `${formatDate(startDate)} – ${formatDate(endDate)}` : "Registra fecha de inicio y fin para calcularlo."}</p></div>
       <div className="rounded-lg border border-line bg-canvas px-3 py-3"><p className="text-xs font-medium text-ink">Etapa del cronograma</p><p className="mt-1 text-sm font-semibold text-ink">{stageToShow?.title ?? "Sin cronograma con fechas"}</p><p className="mt-0.5 text-[11px] text-subtle">{currentStage ? `Etapa actual · ${stageDays === 0 ? "termina hoy" : `${stageDays} días restantes`}` : nextStage ? `Próxima etapa · ${nextStageDays === 0 ? "comienza hoy" : `comienza en ${nextStageDays} días`}` : stageToShow ? "Cronograma finalizado según las fechas registradas." : "Añade fechas para calcular la etapa actual."}</p><p className="mt-1 text-[11px] text-muted">{stageToShow ? `${formatDate(stageToShow.startDate ?? stageToShow.endDate)} – ${formatDate(stageToShow.endDate ?? stageToShow.startDate)}` : ""}</p></div>
