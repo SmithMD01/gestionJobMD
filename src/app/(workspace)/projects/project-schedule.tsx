@@ -4,11 +4,13 @@ import { useState, type FormEvent } from "react";
 import { CreateDialog } from "../create-dialog";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
+import { ScheduleExcelImport } from "./schedule-excel-import";
 
 export type ProjectSchedule = { id: string; status: "draft" | "confirmed"; confirmedAt: string | null };
 export type ProjectScheduleItemStatus = "planned" | "in_progress" | "completed";
 export type ProjectScheduleItemKind = "phase" | "activity";
 export type ProjectScheduleItem = { id: string; title: string; description: string; kind: ProjectScheduleItemKind; color: "slate" | "blue" | "violet" | "amber" | "green" | "rose"; status: ProjectScheduleItemStatus; startDate: string | null; endDate: string | null; sortOrder: number };
+type ImportedScheduleItem = Omit<ProjectScheduleItem, "id" | "sortOrder">;
 
 const scheduleColors = {
   slate: { label: "Gris", bar: "bg-slate-500", dot: "bg-slate-500" },
@@ -145,6 +147,8 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<"table" | "gantt">("gantt");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importPending, setImportPending] = useState(false);
 
   function beginEditing() { setDraftItems(items.map((item, index) => ({ ...item, sortOrder: index }))); setError(""); setEditing(true); }
   function cancelEditing() { setDraftItems(items); setError(""); setEditing(false); }
@@ -158,6 +162,12 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
     setDraftItems((current) => current.map((item, itemIndex) => itemIndex === index ? current[target] : itemIndex === target ? current[index] : item).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
   }
   function removeRow(id: string) { setDraftItems((current) => current.filter((item) => item.id !== id).map((item, index) => ({ ...item, sortOrder: index }))); }
+  function loadImportedItems(imported: ImportedScheduleItem[]) {
+    setDraftItems(imported.map((item, index) => ({ ...item, id: draftId(), sortOrder: index })));
+    setError("");
+    setEditing(true);
+    setImportOpen(false);
+  }
 
   async function saveSchedule() {
     if (!draftItems.length) { setError("Añade al menos una fila antes de guardar el cronograma."); return; }
@@ -187,7 +197,7 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
   ];
 
   return <div className="mt-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{schedule && !editing && <button type="button" onClick={() => exportSchedule(items, projectId)} className="ui-button ui-button-success">Exportar para Excel</button>}{schedule && !editing && <button type="button" onClick={beginEditing} className="ui-button ui-button-secondary">Editar cronograma</button>}{!schedule && !editing && <button type="button" onClick={() => setEditing(true)} className="ui-button ui-button-primary">Crear cronograma</button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><button type="button" onClick={() => setView("table")} aria-pressed={view === "table"} className={`rounded-md px-3 py-1.5 text-xs ${view === "table" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Tabla</button><button type="button" onClick={() => setView("gantt")} aria-pressed={view === "gantt"} className={`rounded-md px-3 py-1.5 text-xs ${view === "gantt" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Gantt</button></div>}</div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{!editing && <CreateDialog title="Importar cronograma desde Excel" triggerLabel="Importar Excel" open={importOpen} onOpenChange={setImportOpen} busy={importPending}><ScheduleExcelImport projectId={projectId} onImported={loadImportedItems} onPendingChange={setImportPending} /></CreateDialog>}{schedule && !editing && <button type="button" onClick={() => exportSchedule(items, projectId)} className="ui-button ui-button-success">Exportar para Excel</button>}{schedule && !editing && <button type="button" onClick={beginEditing} className="ui-button ui-button-secondary">Editar cronograma</button>}{!schedule && !editing && <button type="button" onClick={() => setEditing(true)} className="ui-button ui-button-primary">Crear cronograma</button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><button type="button" onClick={() => setView("table")} aria-pressed={view === "table"} className={`rounded-md px-3 py-1.5 text-xs ${view === "table" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Tabla</button><button type="button" onClick={() => setView("gantt")} aria-pressed={view === "gantt"} className={`rounded-md px-3 py-1.5 text-xs ${view === "gantt" ? "bg-ink text-on-primary" : "text-muted hover:text-ink"}`}>Gantt</button></div>}</div></div>
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     {editing ? <>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><button type="button" onClick={() => setRowEditor(null)} className="ui-button ui-button-secondary">Añadir fila</button></div>
