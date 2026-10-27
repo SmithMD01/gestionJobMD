@@ -133,7 +133,7 @@ function ModuleKpi({ module, activities, stages }: { module: ProjectModule; acti
 
 export function ProjectFollowUp({ activities, scheduleItems, stages, modules, projectStatus, startDate, endDate }: { activities: ProjectActivity[]; scheduleItems: ProjectScheduleItem[]; stages: Stage[]; modules: ProjectModule[]; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; startDate: string | null; endDate: string | null }) {
   const today = dateKey(new Date());
-  const datedSchedule = scheduleItems.filter((item) => item.startDate || item.endDate).toSorted((left, right) => (left.startDate ?? left.endDate ?? "9999").localeCompare(right.startDate ?? right.endDate ?? "9999"));
+  const datedSchedule = scheduleItems.filter((item) => item.kind === "activity" && (item.startDate || item.endDate)).toSorted((left, right) => (left.startDate ?? left.endDate ?? "9999").localeCompare(right.startDate ?? right.endDate ?? "9999"));
   const currentStage = datedSchedule.find((item) => (item.startDate ?? item.endDate!) <= today && (item.endDate ?? item.startDate!) >= today) ?? null;
   const nextStage = datedSchedule.find((item) => (item.startDate ?? item.endDate!) > today) ?? null;
   const stageToShow = currentStage ?? nextStage ?? datedSchedule.at(-1) ?? null;

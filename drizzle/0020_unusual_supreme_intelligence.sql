@@ -1,0 +1,2 @@
+CREATE TYPE "public"."project_schedule_item_kind" AS ENUM('phase', 'activity');--> statement-breakpoint
+ALTER TABLE "project_schedule_item" ADD COLUMN "kind" "project_schedule_item_kind" DEFAULT 'activity' NOT NULL;

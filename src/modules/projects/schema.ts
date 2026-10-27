@@ -7,6 +7,7 @@ import { company, companyTeamMember } from "../companies/schema";
 export const projectStatus = pgEnum("project_status", ["planned", "active", "paused", "completed", "cancelled"]);
 export const projectScheduleStatus = pgEnum("project_schedule_status", ["draft", "confirmed"]);
 export const projectScheduleItemStatus = pgEnum("project_schedule_item_status", ["planned", "in_progress", "completed"]);
+export const projectScheduleItemKind = pgEnum("project_schedule_item_kind", ["phase", "activity"]);
 export const activityStatus = pgEnum("activity_status", ["to_validate", "pending", "in_progress", "blocked", "completed", "cancelled"]);
 export const activityType = pgEnum("activity_type", ["task", "meeting", "coordination", "follow_up", "development", "other"]);
 export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "email", "meeting", "automation"]);
@@ -125,6 +126,7 @@ export const projectScheduleItem = pgTable("project_schedule_item", {
   scheduleId: uuid("schedule_id").notNull().references(() => projectSchedule.id),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
+  kind: projectScheduleItemKind("kind").notNull().default("activity"),
   color: text("color").notNull().default("blue"),
   status: projectScheduleItemStatus("status").notNull().default("planned"),
   startDate: date("start_date"),

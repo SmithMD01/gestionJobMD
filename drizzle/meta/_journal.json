@@ -141,6 +141,13 @@
       "when": 1793130075478,
       "tag": "0019_flimsy_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793131329940,
+      "tag": "0020_unusual_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }
