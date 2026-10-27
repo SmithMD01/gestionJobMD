@@ -4,6 +4,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { CompanyMember } from "./company-member-selector";
+import { Button } from "@/components/ui/button";
 
 export function CompanyMemberSettingsForm({ companyId, member, onSaved, onPendingChange }: {
   companyId: string;
@@ -55,7 +56,7 @@ export function CompanyMemberSettingsForm({ companyId, member, onSaved, onPendin
         <span><span className="block font-medium text-ink">Visible en asignación de actividades</span><span className="mt-1 block text-xs text-muted">Si está desmarcado, no aparecerá como responsable disponible. Las cuentas inactivas tampoco aparecen, aunque esta opción esté marcada.</span></span>
       </label>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : "Guardar configuración"}</button>
+      <Button variant="primary" loading={pending}>{pending ? "Guardando…" : "Guardar configuración"}</Button>
     </form>
   );
 }

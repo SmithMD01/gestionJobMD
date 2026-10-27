@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
@@ -45,9 +46,9 @@ export function SignInForm() {
       </label>
       <div className="flex justify-end"><Link href="/forgot-password" className="text-xs font-medium text-muted underline underline-offset-4 hover:text-ink">¿Olvidaste tu contraseña?</Link></div>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary w-full !min-h-10">
+      <Button variant="primary" loading={pending} className="w-full !min-h-10">
         {pending ? "Comprobando…" : "Entrar"}
-      </button>
+      </Button>
     </form>
   );
 }

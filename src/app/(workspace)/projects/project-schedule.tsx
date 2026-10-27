@@ -5,6 +5,7 @@ import { CreateDialog } from "../create-dialog";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
 import { ScheduleExcelImport } from "./schedule-excel-import";
+import { Button } from "@/components/ui/button";
 
 export type ProjectSchedule = { id: string; status: "draft" | "confirmed"; confirmedAt: string | null };
 export type ProjectScheduleItemStatus = "planned" | "in_progress" | "completed";
@@ -109,7 +110,7 @@ function ScheduleGantt({ items }: { items: ProjectScheduleItem[] }) {
     </div>
     {rowsWithoutDates.length > 0 && <div className="rounded-lg border border-dashed border-line bg-canvas px-3 py-2 text-xs text-muted"><span className="font-semibold text-ink">Sin fechas:</span> {rowsWithoutDates.map((item) => item.title).join(", ")}</div>}
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-canvas px-3 py-2 text-[11px] text-muted"><span className="font-semibold text-ink">Estado de la etapa:</span>{Object.entries(scheduleStatusLabels).map(([status, label]) => <span key={status} className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${scheduleStatusDots[status as ProjectScheduleItemStatus]}`} aria-hidden="true" />{label}</span>)}<span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-danger" aria-hidden="true" />Atrasada</span></div>
-    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted"><span>Escala: {density === "compact" ? "más información visible" : "más espacio por día"}</span><button type="button" onClick={() => setDensity((value) => value === "compact" ? "comfortable" : "compact")} className="ui-button ui-button-secondary !px-3 !py-1.5 !text-xs">Cambiar escala</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted"><span>Escala: {density === "compact" ? "más información visible" : "más espacio por día"}</span><Button type="button" variant="secondary" size="compact" onClick={() => setDensity((value) => value === "compact" ? "comfortable" : "compact")}>Cambiar escala</Button></div>
   </div>;
 }
 
@@ -134,7 +135,7 @@ function ScheduleRowForm({ initial, onSaved, onPendingChange }: { initial?: Proj
     <label className="block text-sm font-medium">Fecha final<input name="endDate" type="date" defaultValue={initial?.endDate ?? ""} className="ui-field mt-1 block" /></label>
     <label className="block text-sm font-medium sm:col-span-2">Descripción<textarea name="description" maxLength={2000} rows={3} defaultValue={initial?.description ?? ""} className="ui-field mt-1 block" placeholder="Notas opcionales de esta etapa" /></label>
     {error && <p role="alert" className="text-sm text-danger sm:col-span-2">{error}</p>}
-    <button className="ui-button ui-button-primary sm:col-span-2">{initial ? "Guardar fila" : "Añadir fila"}</button>
+    <Button variant="primary" className="sm:col-span-2">{initial ? "Guardar fila" : "Añadir fila"}</Button>
   </form>;
 }
 
@@ -197,12 +198,12 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
   ];
 
   return <div className="mt-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{!editing && <CreateDialog title="Importar cronograma desde Excel" triggerLabel="Importar Excel" open={importOpen} onOpenChange={setImportOpen} busy={importPending}><ScheduleExcelImport projectId={projectId} onImported={loadImportedItems} onPendingChange={setImportPending} /></CreateDialog>}{schedule && !editing && <button type="button" onClick={() => exportSchedule(items, projectId)} className="ui-button ui-button-success">Exportar para Excel</button>}{schedule && !editing && <button type="button" onClick={beginEditing} className="ui-button ui-button-secondary">Editar cronograma</button>}{!schedule && !editing && <button type="button" onClick={() => setEditing(true)} className="ui-button ui-button-primary">Crear cronograma</button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><button type="button" onClick={() => setView("table")} aria-pressed={view === "table"} className={`rounded-md px-3 py-1.5 text-xs ${view === "table" ? "bg-accent text-on-accent" : "text-muted hover:text-accent-strong"}`}>Tabla</button><button type="button" onClick={() => setView("gantt")} aria-pressed={view === "gantt"} className={`rounded-md px-3 py-1.5 text-xs ${view === "gantt" ? "bg-accent text-on-accent" : "text-muted hover:text-accent-strong"}`}>Gantt</button></div>}</div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{!editing && <CreateDialog title="Importar cronograma desde Excel" triggerLabel="Importar Excel" open={importOpen} onOpenChange={setImportOpen} busy={importPending}><ScheduleExcelImport projectId={projectId} onImported={loadImportedItems} onPendingChange={setImportPending} /></CreateDialog>}{schedule && !editing && <Button type="button" variant="success" onClick={() => exportSchedule(items, projectId)}>Exportar para Excel</Button>}{schedule && !editing && <Button type="button" variant="secondary" onClick={beginEditing}>Editar cronograma</Button>}{!schedule && !editing && <Button type="button" variant="primary" onClick={() => setEditing(true)}>Crear cronograma</Button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><Button type="button" variant={view === "table" ? "primary" : "ghost"} size="compact" onClick={() => setView("table")} aria-pressed={view === "table"}>Tabla</Button><Button type="button" variant={view === "gantt" ? "primary" : "ghost"} size="compact" onClick={() => setView("gantt")} aria-pressed={view === "gantt"}>Gantt</Button></div>}</div></div>
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     {editing ? <>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><button type="button" onClick={() => setRowEditor(null)} className="ui-button ui-button-secondary">Añadir fila</button></div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><Button type="button" variant="secondary" onClick={() => setRowEditor(null)}>Añadir fila</Button></div>
       <DataTable className="!text-xs" pagination={false} rows={draftItems} columns={editableColumns} rowKey={(item) => item.id} emptyMessage="Añade la primera fila del cronograma." />
-      <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={cancelEditing} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void saveSchedule()} disabled={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : "Guardar cronograma"}</button></div>
+      <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="secondary" onClick={cancelEditing} disabled={pending}>Cancelar</Button><Button type="button" variant="primary" loading={pending} onClick={() => void saveSchedule()}>{pending ? "Guardando…" : "Guardar cronograma"}</Button></div>
     </> : <>
       {view === "table" ? <DataTable className="!text-xs" pagination={false} rows={items} columns={readOnlyColumns} rowKey={(item) => item.id} emptyMessage="Aún no hay filas en el cronograma." /> : <ScheduleGantt items={items} />}
     </>}

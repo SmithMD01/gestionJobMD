@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -39,7 +40,7 @@ export function TwoFactorForm() {
         <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="ui-field mt-1.5 block text-center tracking-[0.25em]" />
       </label>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary w-full !min-h-10">{pending ? "Verificando…" : "Verificar"}</button>
+      <Button variant="primary" loading={pending} className="w-full !min-h-10">{pending ? "Verificando…" : "Verificar"}</Button>
       <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); setError(""); }} className="w-full text-center text-xs font-medium text-muted underline underline-offset-4 hover:text-ink">
         {recovery ? "Usar código temporal" : "Usar código de recuperación"}
       </button>

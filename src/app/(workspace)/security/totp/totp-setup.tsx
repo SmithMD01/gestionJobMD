@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 
 export function TotpSetup() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export function TotpSetup() {
           <label className="block text-sm font-medium">Contraseña actual
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
           </label>
-          <button disabled={pending} className="rounded-md bg-ink px-4 py-2 text-on-primary disabled:opacity-50">Generar código QR</button>
+          <Button variant="primary" loading={pending}>Generar código QR</Button>
         </form>
       ) : (
         <div className="space-y-5">
@@ -71,7 +72,7 @@ export function TotpSetup() {
               <label className="block text-sm font-medium">Código de la aplicación
                 <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
               </label>
-              <button disabled={pending} className="rounded-md bg-ink px-4 py-2 text-on-primary disabled:opacity-50">Confirmar segundo factor</button>
+              <Button variant="primary" loading={pending}>Confirmar segundo factor</Button>
             </form>
           ) : (
             <p role="status" className="font-medium text-success">Segundo factor activado. Guarda estos códigos antes de continuar.</p>
@@ -84,7 +85,7 @@ export function TotpSetup() {
               </ul>
             </div>
           )}
-          {verified && <button onClick={() => { setUri(""); setBackupCodes([]); router.replace("/dashboard"); }} className="rounded-md bg-ink px-4 py-2 text-on-primary">Continuar</button>}
+          {verified && <Button variant="success" onClick={() => { setUri(""); setBackupCodes([]); router.replace("/dashboard"); }}>Continuar</Button>}
         </div>
       )}
       {error && <p role="alert" className="mt-4 text-sm text-danger">{error}</p>}

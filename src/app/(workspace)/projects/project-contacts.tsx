@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CreateDialog } from "../create-dialog";
+import { Button } from "@/components/ui/button";
 
 export type ProjectContact = { id: string; name: string; email: string | null; phone: string | null };
 
@@ -70,7 +71,7 @@ function ContactForm({ projectId, initial, onSaved, onPendingChange }: {
       <input name="phone" type="tel" defaultValue={initial?.phone ?? ""} maxLength={40} autoComplete="tel" className="ui-field mt-1 block" />
     </label>
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-    <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : initial ? "Guardar cambios" : "Agregar contacto"}</button>
+    <Button variant="primary" loading={pending}>{pending ? "Guardando…" : initial ? "Guardar cambios" : "Agregar contacto"}</Button>
   </form>;
 }
 
@@ -146,7 +147,7 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
       <div className="mt-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div><p className="text-xs text-subtle">Personas relacionadas con este proyecto.</p></div>
-      <button type="button" onClick={openCreate} className="ui-button ui-button-primary w-full !px-3 !text-xs sm:w-auto">Agregar contacto</button>
+      <Button type="button" variant="primary" size="compact" onClick={openCreate} className="w-full !px-3 !text-xs sm:w-auto">Agregar contacto</Button>
     </div>
     {copyMessage && <p role="status" aria-live="polite" className="mt-3 text-xs text-muted">{copyMessage}</p>}
     {contacts.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas px-4 py-5 text-sm text-muted">Todavía no hay contactos registrados.</p> : <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -164,13 +165,13 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
           </div>
           <div className={`absolute inset-0 flex items-center pr-20 transition-transform duration-300 ${expanded ? "translate-y-0" : "translate-y-full group-hover:translate-y-0"}`}>
             {(contact.email || contact.phone) ? <div className="w-full space-y-1 px-3">
-              {contact.email && <div className="flex min-w-0 items-center gap-1.5"><a href={`mailto:${contact.email}`} onClick={(event) => event.stopPropagation()} className="min-w-0 flex-1 truncate text-xs text-muted hover:text-ink">{contact.email}</a><button type="button" onClick={(event) => { event.stopPropagation(); void copyValue("Correo", contact.email!); }} aria-label={`Copiar correo de ${contact.name}`} title="Copiar correo" className="ui-button ui-button-secondary !min-h-7 !w-7 !shrink-0 !p-0"><CopyIcon /></button></div>}
-              {contact.phone && <div className="flex min-w-0 items-center gap-1.5"><a href={`tel:${contact.phone}`} onClick={(event) => event.stopPropagation()} className="min-w-0 flex-1 truncate text-xs text-muted hover:text-ink">{contact.phone}</a><button type="button" onClick={(event) => { event.stopPropagation(); void copyValue("Teléfono", contact.phone!); }} aria-label={`Copiar teléfono de ${contact.name}`} title="Copiar teléfono" className="ui-button ui-button-secondary !min-h-7 !w-7 !shrink-0 !p-0"><CopyIcon /></button></div>}
+              {contact.email && <div className="flex min-w-0 items-center gap-1.5"><a href={`mailto:${contact.email}`} onClick={(event) => event.stopPropagation()} className="min-w-0 flex-1 truncate text-xs text-muted hover:text-ink">{contact.email}</a><Button type="button" variant="secondary" size="icon" onClick={(event) => { event.stopPropagation(); void copyValue("Correo", contact.email!); }} aria-label={`Copiar correo de ${contact.name}`} title="Copiar correo"><CopyIcon /></Button></div>}
+              {contact.phone && <div className="flex min-w-0 items-center gap-1.5"><a href={`tel:${contact.phone}`} onClick={(event) => event.stopPropagation()} className="min-w-0 flex-1 truncate text-xs text-muted hover:text-ink">{contact.phone}</a><Button type="button" variant="secondary" size="icon" onClick={(event) => { event.stopPropagation(); void copyValue("Teléfono", contact.phone!); }} aria-label={`Copiar teléfono de ${contact.name}`} title="Copiar teléfono"><CopyIcon /></Button></div>}
             </div> : <p className="w-full px-3 text-center text-xs text-subtle">Sin correo ni teléfono</p>}
           </div>
           <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
-            <button type="button" onClick={(event) => { event.stopPropagation(); openEdit(contact); }} aria-label={`Editar contacto ${contact.name}`} title="Editar contacto" className="ui-button ui-button-secondary !min-h-8 !w-8 !p-0"><EditIcon /></button>
-            <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteError(""); setDeleting(contact); }} aria-label={`Eliminar contacto ${contact.name}`} title="Eliminar contacto" className="ui-button ui-button-danger !min-h-8 !w-8 !p-0"><DeleteIcon /></button>
+            <Button type="button" variant="secondary" size="icon" onClick={(event) => { event.stopPropagation(); openEdit(contact); }} aria-label={`Editar contacto ${contact.name}`} title="Editar contacto"><EditIcon /></Button>
+            <Button type="button" variant="danger" size="icon" onClick={(event) => { event.stopPropagation(); setDeleteError(""); setDeleting(contact); }} aria-label={`Eliminar contacto ${contact.name}`} title="Eliminar contacto"><DeleteIcon /></Button>
           </div>
         </li>;
       })}
@@ -187,8 +188,8 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
         <p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar a <strong className="text-ink">{deleting.name}</strong> de los contactos de este proyecto? Esta acción no se puede deshacer.</p>
         {deleteError && <p role="alert" className="text-sm text-danger">{deleteError}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => setDeleting(null)} disabled={deletePending} className="ui-button ui-button-secondary">Cancelar</button>
-          <button type="button" onClick={() => void deleteContact()} disabled={deletePending} aria-busy={deletePending} className="ui-button ui-button-danger">{deletePending ? "Eliminando…" : "Eliminar contacto"}</button>
+          <Button type="button" variant="secondary" onClick={() => setDeleting(null)} disabled={deletePending}>Cancelar</Button>
+          <Button type="button" variant="danger" loading={deletePending} onClick={() => void deleteContact()}>{deletePending ? "Eliminando…" : "Eliminar contacto"}</Button>
         </div>
       </div>}
     </CreateDialog>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 export function Dialog({
   title,
@@ -47,7 +48,7 @@ export function Dialog({
         <div className="ui-dialog-content">
           <div className="mb-5 flex items-start justify-between gap-4">
             <h2 id={titleId} className="text-xl font-semibold text-ink">{title}</h2>
-            <button type="button" onClick={close} disabled={busy} aria-label={closeLabel} className="ui-button ui-button-secondary !min-h-8 !px-2">{closeLabel}</button>
+            <Button type="button" variant="secondary" size="compact" onClick={close} disabled={busy} aria-label={closeLabel}>{closeLabel}</Button>
           </div>
           {open && children}
         </div>

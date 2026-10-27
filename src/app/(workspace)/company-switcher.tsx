@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UiIcon } from "../ui-icon";
+import { Button } from "@/components/ui/button";
 
 type CompanyOption = { id: string; name: string };
 
@@ -40,22 +41,24 @@ export function CompanySwitcher({ companies, activeId }: { companies: CompanyOpt
 
   return (
     <div className="relative">
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="icon"
         onClick={() => setOpen((value) => !value)}
         aria-label={`Empresa activa: ${activeCompany?.name ?? "ninguna"}. Cambiar empresa`}
         aria-expanded={open}
         aria-controls="company-menu"
         title={activeCompany?.name ?? "Seleccionar empresa"}
-        className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-muted shadow-sm hover:bg-hover hover:text-ink"
-      ><UiIcon name="companies" /></button>
+        className="rounded-xl text-muted"
+      ><UiIcon name="companies" /></Button>
       {open && <div id="company-menu" className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-line bg-surface p-2 shadow-lg">
         <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-subtle">Empresa activa</p>
         {companies.length === 0 ? <p className="px-2 py-2 text-sm text-muted">Aún no hay empresas.</p> : companies.map((company) => (
-          <button key={company.id} type="button" disabled={pending} onClick={() => void change(company.id)} className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-hover ${company.id === activeId ? "font-semibold text-ink" : "text-muted"}`}>
+          <Button key={company.id} type="button" variant="ghost" size="compact" disabled={pending} onClick={() => void change(company.id)} className={`w-full justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm ${company.id === activeId ? "font-semibold text-ink" : "text-muted"}`}>
             <span className="truncate">{company.name}</span>
             {company.id === activeId && <span className="text-xs text-subtle">Activa</span>}
-          </button>
+          </Button>
         ))}
         {error && <p role="alert" className="px-2 py-1 text-xs text-danger">{error}</p>}
         <Link href="/companies" onClick={() => setOpen(false)} className="mt-1 block border-t border-line px-2 pt-2 text-sm text-muted hover:text-ink">Administrar empresas</Link>

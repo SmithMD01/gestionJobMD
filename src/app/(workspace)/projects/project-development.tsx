@@ -8,6 +8,7 @@ import type { ProjectModule } from "./project-modules";
 import { RowActions } from "../row-actions";
 import { ProjectActivityDetail } from "./project-activity-detail";
 import { parseChecklist, serializeChecklist } from "@/modules/projects/checklist";
+import { Button } from "@/components/ui/button";
 
 type Stage = { id: string; name: string; color: string };
 type TeamMember = { id: string; name: string; role: string | null };
@@ -81,11 +82,11 @@ export function ProjectDevelopment({ projectId, activities: initialActivities, s
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-base font-semibold">Desarrollo</h2><p className="mt-1 text-xs text-subtle">Actividades técnicas organizadas por etapa.</p></div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setShowCancelled((value) => !value)} className="ui-button ui-button-secondary !text-xs">{showCancelled ? "Ocultar canceladas" : "Mostrar canceladas"}</button>
-        <button type="button" onClick={() => setEditor(null)} className="ui-button ui-button-primary">Crear actividad</button>
+        <Button type="button" variant="secondary" size="compact" onClick={() => setShowCancelled((value) => !value)}>{showCancelled ? "Ocultar canceladas" : "Mostrar canceladas"}</Button>
+        <Button type="button" variant="primary" onClick={() => setEditor(null)}>Crear actividad</Button>
         <div className="flex rounded-lg border border-line p-1">
-          <button type="button" onClick={() => setView("table")} aria-pressed={view === "table"} className={`rounded-md px-3 py-1.5 text-xs ${view === "table" ? "bg-ink text-on-primary" : "text-muted"}`}>Tabla</button>
-          <button type="button" onClick={() => setView("kanban")} aria-pressed={view === "kanban"} className={`rounded-md px-3 py-1.5 text-xs ${view === "kanban" ? "bg-ink text-on-primary" : "text-muted"}`}>Kanban</button>
+          <Button type="button" variant={view === "table" ? "primary" : "ghost"} size="compact" onClick={() => setView("table")} aria-pressed={view === "table"}>Tabla</Button>
+          <Button type="button" variant={view === "kanban" ? "primary" : "ghost"} size="compact" onClick={() => setView("kanban")} aria-pressed={view === "kanban"}>Kanban</Button>
         </div>
       </div>
     </div>
@@ -118,7 +119,7 @@ export function ProjectDevelopment({ projectId, activities: initialActivities, s
       <ActivityForm projectId={projectId} initial={editor ?? undefined} stages={stages} modules={modules} teamMembers={teamMembers} developmentOnly onSaved={saved} onPendingChange={setPending} />
     </CreateDialog>
     <CreateDialog title="Eliminar actividad" triggerLabel="Eliminar actividad" open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending} showTrigger={false}>
-      {deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(null)} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void remove()} disabled={pending} className="ui-button ui-button-danger">{pending ? "Eliminando…" : "Eliminar actividad"}</button></div></div>}
+      {deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancelar</Button><Button type="button" variant="danger" loading={pending} onClick={() => void remove()}>{pending ? "Eliminando…" : "Eliminar actividad"}</Button></div></div>}
     </CreateDialog>
   </div>;
 }

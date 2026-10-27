@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CompanyMemberSelector, type AssignableUser } from "./company-member-selector";
+import { Button } from "@/components/ui/button";
 
 export function CompanyEditForm({ companyId, initialName, initialActive, initialMemberIds, users, currentUserId, onSaved, onPendingChange }: {
   companyId: string;
@@ -60,8 +61,8 @@ export function CompanyEditForm({ companyId, initialName, initialActive, initial
     </label>
     <CompanyMemberSelector users={users} selectedIds={memberIds} currentUserId={currentUserId} onChange={setMemberIds} />
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-    <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">
+    <Button variant="primary" loading={pending}>
       {pending ? "Guardando…" : "Guardar cambios"}
-    </button>
+    </Button>
   </form>;
 }

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CompanyMemberSelector, type AssignableUser } from "./company-member-selector";
+import { Button } from "@/components/ui/button";
 
 export function CompanyForm({ users, currentUserId, onCreated, onPendingChange }: { users: AssignableUser[]; currentUserId: string; onCreated: () => void; onPendingChange?: (pending: boolean) => void }) {
   const router = useRouter();
@@ -44,9 +45,9 @@ export function CompanyForm({ users, currentUserId, onCreated, onPendingChange }
       </label>
       <CompanyMemberSelector users={users} selectedIds={memberIds} currentUserId={currentUserId} onChange={setMemberIds} />
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">
+    <Button variant="primary" loading={pending}>
         {pending ? "Creando…" : "Crear empresa"}
-      </button>
+    </Button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
 
 export function PasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -40,7 +41,7 @@ export function PasswordForm() {
       <label className="block text-sm font-medium">Código de la aplicación autenticadora
         <input value={totpCode} onChange={(event) => setTotpCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" required className="mt-1 block w-full rounded-md border border-line px-3 py-2" />
       </label>
-      <button disabled={pending} className="rounded-md bg-ink px-4 py-2 text-on-primary disabled:opacity-50">Actualizar contraseña</button>
+      <Button variant="primary" loading={pending}>Actualizar contraseña</Button>
       {message && <p role="status" className="text-sm">{message}</p>}
     </form>
   );

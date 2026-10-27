@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { UiIcon, type IconName } from "../ui-icon";
 import { UserProfile } from "./user-profile";
+import { Button } from "@/components/ui/button";
 
 type NavLink = { href: string; label: string; icon: IconName; visible: boolean };
 
@@ -54,37 +55,42 @@ export function Sidebar({ role, twoFactorEnabled, userName, userEmail }: {
   return (
     <aside className={`m-3 shrink-0 rounded-2xl border border-line bg-surface shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-[width] duration-200 md:sticky md:top-3 md:ml-3 md:mr-0 md:flex md:h-[calc(100vh-1.5rem)] md:flex-col ${collapsed ? "md:w-[72px]" : "md:w-56"}`}>
       <div className={`relative flex items-center gap-2 px-3 py-3 ${collapsed ? "md:flex-col md:px-2" : ""} ${logoExpanded && !collapsed ? "md:flex-col md:gap-2" : ""}`}>
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => setLogoExpanded((value) => !value)}
           aria-label={logoExpanded ? "Reducir logo" : "Ampliar logo"}
           aria-pressed={logoExpanded}
           title={logoExpanded ? "Reducir logo" : "Ampliar logo"}
-          className={`shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-accent ${logoExpanded && !collapsed ? "md:mx-auto md:h-44 md:w-44" : ""}`}
+          className={`!min-h-0 !p-0 shrink-0 rounded-xl focus-visible:outline-2 focus-visible:outline-accent ${logoExpanded && !collapsed ? "md:mx-auto md:h-44 md:w-44" : ""}`}
         >
           <Image src="/brand.svg" alt="" width={96} height={96} priority className={`block aspect-square transition-[width,height] duration-200 ${logoExpanded ? collapsed ? "h-12 w-12" : "h-44 w-44" : "h-9 w-9"}`} />
-        </button>
+        </Button>
         {!collapsed && !logoExpanded && (
           <Link href="/dashboard" className="min-w-0 flex-1 leading-tight">
             <span className="block truncate text-sm font-semibold text-ink">Gestión MD</span>
             <span className="mt-1 block text-xs text-subtle">Job Space</span>
           </Link>
         )}
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
           onClick={() => setMobileOpen((value) => !value)}
           aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={mobileOpen}
-          className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-hover md:hidden"
-        ><UiIcon name="menu" /></button>
-        <button
+          className="!flex ml-auto rounded-lg md:!hidden"
+        ><UiIcon name="menu" /></Button>
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
           onClick={() => setCollapsed((value) => !value)}
           aria-label={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
           aria-expanded={!collapsed}
           title={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
-          className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-hover md:flex ${logoExpanded && !collapsed ? "absolute right-2 top-2" : collapsed ? "" : "ml-auto"}`}
-        ><UiIcon name={collapsed ? "panelOpen" : "panelClose"} /></button>
+          className={`!hidden shrink-0 rounded-lg md:!flex ${logoExpanded && !collapsed ? "absolute right-2 top-2" : collapsed ? "" : "ml-auto"}`}
+        ><UiIcon name={collapsed ? "panelOpen" : "panelClose"} /></Button>
       </div>
 
       <div className={`${mobileOpen ? "flex" : "hidden md:flex"} min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3`}>

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { projectStatusLabel, type ProjectStatus } from "@/modules/projects/constants";
+import { Button } from "@/components/ui/button";
 
 export type ProjectFormProject = {
   id: string;
@@ -81,9 +82,9 @@ export function ProjectForm({ initial, embedded = false, onPendingChange, onSave
         </label>
       </div>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">
+      <Button variant="primary" loading={pending}>
         {pending ? "Guardando…" : initial ? "Guardar cambios" : "Crear proyecto"}
-      </button>
+      </Button>
     </form>
   );
 }

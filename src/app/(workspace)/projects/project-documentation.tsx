@@ -6,6 +6,7 @@ import { CreateDialog } from "../create-dialog";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
 import { documentationGroups, documentationStatusLabels, documentationStatuses, type DocumentationStatus } from "@/modules/projects/documentation";
+import { Button } from "@/components/ui/button";
 
 export type ProjectDocument = {
   id: string;
@@ -84,7 +85,7 @@ function DocumentUploadForm({ projectId, initialGroupId, initialTypeId, initialT
     <label className="block text-sm font-medium">Archivo<input name="file" type="file" required accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.md,.txt,.csv,.json,.zip" className="ui-field mt-1 block" /><span className="mt-1 block text-xs font-normal text-subtle">Máximo 10 MB. La nueva carga se guardará como la siguiente versión.</span></label>
     <label className="block text-sm font-medium">Notas<span className="mt-1 block text-xs font-normal text-subtle">Opcional</span><textarea name="notes" maxLength={2000} rows={3} className="ui-field mt-1 block" /></label>
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-    <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">{pending ? "Adjuntando…" : "Adjuntar documento"}</button>
+    <Button variant="primary" loading={pending}>{pending ? "Adjuntando…" : "Adjuntar documento"}</Button>
   </form>;
 }
 
@@ -115,7 +116,7 @@ function DocumentSettingsForm({ projectId, document, onSaved, onPendingChange }:
     <label className="block text-sm font-medium">Notas<textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} rows={3} className="ui-field mt-1 block" /></label>
     <label className="flex items-start gap-3 rounded-lg border border-line p-3 text-sm"><input type="checkbox" checked={isFinal} disabled={status !== "approved"} onChange={(event) => setIsFinal(event.target.checked)} /><span><span className="block font-medium text-ink">Marcar como versión vigente ★</span><span className="mt-1 block text-xs text-muted">Solo las versiones aprobadas pueden ser vigentes. Al marcarla, se quitará la estrella de la versión anterior.</span></span></label>
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-    <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : "Guardar cambios"}</button>
+    <Button variant="primary" loading={pending}>{pending ? "Guardando…" : "Guardar cambios"}</Button>
   </form>;
 }
 
@@ -151,7 +152,7 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
     try { const response = await fetch(`/api/projects/${projectId}/documents/${deleting.id}`, { method: "DELETE" }); const result = await response.json().catch(() => null); if (!response.ok) { setError(result?.error || "No se pudo eliminar el documento."); return; } setDocuments((current) => current.filter((item) => item.id !== deleting.id)); setDeleting(null); } catch { setError("No se pudo conectar. Vuelve a intentarlo."); } finally { actionLock.current = false; setPending(false); }
   }
   return <div className="mt-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Documentación</h2><p className="mt-1 text-xs text-subtle">Organiza documentos funcionales, técnicos y operativos por tipo y versión.</p></div><button type="button" onClick={() => setUpload({})} className="ui-button ui-button-primary">Adjuntar documento</button></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Documentación</h2><p className="mt-1 text-xs text-subtle">Organiza documentos funcionales, técnicos y operativos por tipo y versión.</p></div><Button type="button" variant="primary" onClick={() => setUpload({})}>Adjuntar documento</Button></div>
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     <div className="mt-5 space-y-3">
       {documentationGroups.map((group) => {
@@ -170,14 +171,16 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
                   key: "final",
                   label: "Final",
                   className: "w-16",
-                  render: (item) => <button
+                  render: (item) => <Button
                     type="button"
+                    variant={item.isFinal ? "warning" : "ghost"}
+                    size="icon"
                     onClick={() => void toggleFinal(item)}
                     disabled={pending || item.status !== "approved"}
                     aria-label={item.isFinal ? `Quitar versión definitiva de v${item.version}` : `Marcar v${item.version} como definitiva`}
                     title={item.status !== "approved" ? "Aprueba la versión para marcarla como definitiva" : item.isFinal ? "Versión definitiva" : "Marcar como definitiva"}
-                    className={`inline-flex size-7 items-center justify-center rounded-md border transition-colors ${item.isFinal ? "border-warning/40 bg-warning/10 text-warning" : item.status !== "approved" ? "border-line text-muted/50" : "border-line text-muted hover:border-warning/50 hover:bg-warning/10 hover:text-warning"}`}
-                  ><StarIcon active={item.isFinal} /></button>
+                    className={`!size-7 !min-w-7 rounded-md ${item.status !== "approved" ? "text-muted/50" : ""}`}
+                  ><StarIcon active={item.isFinal} /></Button>
                 },
                 { key: "version", label: "Versión", className: "w-20", render: (item) => <span className="font-medium">v{item.version}</span> },
                 {
@@ -198,7 +201,7 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
               return <section key={typeId} aria-labelledby={`document-type-${group.id}-${typeId}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div><h3 id={`document-type-${group.id}-${typeId}`} className="text-sm font-semibold text-ink">{typeLabel}</h3>{versions.length === 0 && <p className="mt-1 text-xs text-muted">Aún no hay versiones adjuntas.</p>}</div>
-                  {versions.length > 0 && <button type="button" onClick={() => setUpload({ groupId: group.id, typeId, title: versions[0]?.title })} className="ui-button ui-button-secondary !px-2.5 !py-1.5 !text-xs">Nueva versión</button>}
+                  {versions.length > 0 && <Button type="button" variant="secondary" size="compact" onClick={() => setUpload({ groupId: group.id, typeId, title: versions[0]?.title })}>Nueva versión</Button>}
                 </div>
                 {versions.length > 0 && <DataTable className="!text-xs" containerClassName="!mt-2" pagination={false} rows={versions} rowKey={(item) => item.id} emptyMessage="Sin versiones" columns={columns} />}
               </section>;
@@ -209,6 +212,6 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
     </div>
     <CreateDialog title={upload?.typeId ? "Nueva versión documental" : "Adjuntar documento"} triggerLabel="Adjuntar documento" showTrigger={false} open={upload !== null} onOpenChange={(open) => { if (!open && !pending) setUpload(null); }} busy={pending}>{upload && <DocumentUploadForm key={`${upload.groupId ?? "new"}:${upload.typeId ?? "new"}`} projectId={projectId} initialGroupId={upload.groupId} initialTypeId={upload.typeId} initialTitle={upload.title} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>
     <CreateDialog title="Editar documento" triggerLabel="Editar documento" showTrigger={false} open={settings !== null} onOpenChange={(open) => { if (!open && !pending) setSettings(null); }} busy={pending}>{settings && <DocumentSettingsForm key={settings.id} projectId={projectId} document={settings} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>
-    <CreateDialog title="Eliminar documento" triggerLabel="Eliminar documento" showTrigger={false} open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending}>{deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title} v{deleting.version}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(null)} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void remove()} disabled={pending} className="ui-button ui-button-danger">{pending ? "Eliminando…" : "Eliminar documento"}</button></div></div>}</CreateDialog>
+    <CreateDialog title="Eliminar documento" triggerLabel="Eliminar documento" showTrigger={false} open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending}>{deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title} v{deleting.version}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancelar</Button><Button type="button" variant="danger" loading={pending} onClick={() => void remove()}>{pending ? "Eliminando…" : "Eliminar documento"}</Button></div></div>}</CreateDialog>
   </div>;
 }

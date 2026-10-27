@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 export type TableColumn<T> = {
   key: string;
@@ -104,9 +105,9 @@ export function DataTable<T>({
               {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
             </select>
           </label>
-          <button type="button" disabled={paginationDisabled || safePage === 0} onClick={() => changePage(safePage - 1)} className="ui-button ui-button-secondary">Anterior</button>
+          <Button type="button" variant="secondary" disabled={paginationDisabled || safePage === 0} onClick={() => changePage(safePage - 1)}>Anterior</Button>
           <span aria-live="polite">Página {safePage + 1} de {totalPages}</span>
-          <button type="button" disabled={paginationDisabled || safePage + 1 >= totalPages} onClick={() => changePage(safePage + 1)} className="ui-button ui-button-secondary">Siguiente</button>
+          <Button type="button" variant="secondary" disabled={paginationDisabled || safePage + 1 >= totalPages} onClick={() => changePage(safePage + 1)}>Siguiente</Button>
         </div>
       </nav>}
     </section>

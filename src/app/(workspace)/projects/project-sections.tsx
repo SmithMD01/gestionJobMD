@@ -10,6 +10,7 @@ import type { ProjectModule } from "./project-modules";
 import { ProjectConfiguration } from "./project-configuration";
 import { ProjectDocumentation, type ProjectDocument } from "./project-documentation";
 import { formatProjectDate } from "@/modules/projects/constants";
+import { Button } from "@/components/ui/button";
 
 const sections = [
   { id: "information", label: "Información proyecto" },
@@ -44,8 +45,10 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           document.getElementById(`project-tab-${next.id}`)?.focus();
         }
       }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 xl:grid-cols-8">
-        {sections.map((section) => <button
+        {sections.map((section) => <Button
           key={section.id}
+          variant={active === section.id ? "primary" : "secondary"}
+          size="compact"
           id={`project-tab-${section.id}`}
           type="button"
           role="tab"
@@ -53,8 +56,8 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           aria-controls={`project-panel-${section.id}`}
           tabIndex={active === section.id ? 0 : -1}
           onClick={() => setActive(section.id)}
-          className={`min-h-8 w-full min-w-0 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${active === section.id ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-muted hover:bg-accent-soft hover:text-accent-strong"}`}
-        >{section.label}</button>)}
+          className="w-full min-w-0 rounded-lg px-2 text-xs font-medium"
+        >{section.label}</Button>)}
       </div>
 
       {sections.map((section) => <div key={section.id} id={`project-panel-${section.id}`} role="tabpanel" aria-labelledby={`project-tab-${section.id}`} tabIndex={0} hidden={active !== section.id} className="mt-3 rounded-xl border border-line bg-surface p-5 sm:p-6">

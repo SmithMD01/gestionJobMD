@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { UiIcon } from "../ui-icon";
 import type { WorkspaceNotification } from "@/modules/notifications/types";
+import { Button } from "@/components/ui/button";
 
 const toneClass: Record<WorkspaceNotification["kind"], string> = { overdue: "bg-danger", urgent: "bg-danger", schedule: "bg-warning", upcoming: "bg-success" };
 
@@ -12,10 +13,10 @@ export function NotificationBell({ notifications }: { notifications: WorkspaceNo
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-label={notifications.length ? `${notifications.length} notificaciones` : "Notificaciones"} aria-expanded={open} aria-controls="notification-panel" className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-surface text-muted shadow-sm hover:bg-hover hover:text-ink">
+      <Button type="button" variant="secondary" size="icon" onClick={() => setOpen((value) => !value)} aria-label={notifications.length ? `${notifications.length} notificaciones` : "Notificaciones"} aria-expanded={open} aria-controls="notification-panel" className="relative rounded-xl text-muted">
         <UiIcon name="bell" />
         {notifications.length > 0 && <span aria-hidden="true" className="absolute right-1 top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-4 text-on-primary">{notifications.length > 99 ? "99+" : notifications.length}</span>}
-      </button>
+      </Button>
       {open && <div id="notification-panel" className="absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-surface p-3 text-sm shadow-lg">
         <div className="flex items-center justify-between gap-2"><p className="font-semibold text-ink">Notificaciones</p>{notifications.length > 0 && <span className="text-[11px] text-subtle">{notifications.length} pendientes</span>}</div>
         {notifications.length === 0 ? <p className="mt-2 text-xs text-muted">No tienes notificaciones.</p> : <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto">

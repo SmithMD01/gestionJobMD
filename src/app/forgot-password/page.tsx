@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button";
 
 export default function ForgotPasswordPage() {
   return (
@@ -10,7 +10,7 @@ export default function ForgotPasswordPage() {
         </div>
         <h1 id="forgot-password-title" className="text-2xl font-semibold text-ink">Recuperar contraseña</h1>
         <p className="mt-2 text-sm leading-6 text-muted">Solicita al administrador de tu empresa el restablecimiento de tus credenciales.</p>
-        <Link href="/sign-in" className="ui-button ui-button-primary mt-7 w-full">Volver al inicio de sesión</Link>
+        <ButtonLink href="/sign-in" variant="primary" className="mt-7 w-full">Volver al inicio de sesión</ButtonLink>
       </section>
     </main>
   );

@@ -7,6 +7,7 @@ import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { ModuleHeader } from "../module-layout";
 import { RowActions } from "../row-actions";
 import { ViewDetailsDialog } from "../view-details-dialog";
+import { Button } from "@/components/ui/button";
 
 type ManagedUser = { id: string; name: string; email: string; role?: string | null; banned?: boolean | null };
 
@@ -220,20 +221,20 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
             <label className="block text-sm font-medium">Correo
               <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required className="ui-field mt-1 block" />
             </label>
-            <button disabled={pending} aria-busy={pending} className="ui-button ui-button-primary">{pending ? "Creando…" : "Crear usuario"}</button>
+            <Button variant="primary" loading={pending}>{pending ? "Creando…" : "Crear usuario"}</Button>
             </>}
             {password && <div className="rounded-lg bg-note p-4">
               <p className="text-sm font-semibold">Contraseña temporal del nuevo usuario</p>
               <code className="mt-2 block break-all text-sm">{password}</code>
-              <button type="button" onClick={() => void copyPassword()} className="ui-button ui-button-secondary mt-3">Copiar contraseña</button>
-              <button type="button" onClick={() => { setPassword(""); setMessage(""); }} className="ui-button ui-button-secondary mt-3 ml-2">Crear otro usuario</button>
+              <Button type="button" variant="secondary" className="mt-3" onClick={() => void copyPassword()}>Copiar contraseña</Button>
+              <Button type="button" variant="secondary" className="mt-3 ml-2" onClick={() => { setPassword(""); setMessage(""); }}>Crear otro usuario</Button>
             </div>}
             {message && <p role={messageIsError ? "alert" : "status"} className={`text-sm ${messageIsError ? "text-danger" : "text-muted"}`}>{message}</p>}
           </form>
         </CreateDialog>
       } />
       {accountMessage && <p role={accountMessageIsError ? "alert" : "status"} className={`mt-3 text-sm ${accountMessageIsError ? "text-danger" : "text-muted"}`}>{accountMessage}</p>}
-      {listError && <p role="alert" className="mt-4 text-sm text-danger">{listError} <button type="button" onClick={() => void load(page, pageSize, search)} className="underline">Reintentar</button></p>}
+      {listError && <p role="alert" className="mt-4 text-sm text-danger">{listError} <Button type="button" variant="ghost" size="compact" onClick={() => void load(page, pageSize, search)} className="!min-h-0 !px-1 !py-0 !text-xs underline">Reintentar</Button></p>}
       <DataTable
         rows={users}
         columns={columns}
@@ -244,7 +245,7 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
         <label className="min-w-52 flex-1 text-sm font-medium"><span className="sr-only">Buscar por correo</span>
           <input type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Buscar por correo" className="ui-field block" />
         </label>
-        <button type="submit" disabled={loading} className="ui-button ui-button-secondary">Buscar</button>
+        <Button type="submit" variant="secondary" loading={loading}>Buscar</Button>
         </form>}
         pagination={{ mode: "server", page, pageSize, total, disabled: loading || !!listError,
           onPageChange: (next) => { setPage(next); void load(next, pageSize, search); },
@@ -274,7 +275,7 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
             </select>
             {editingUser.id === currentUserId && <span className="mt-1 block text-xs text-muted">No puedes desactivar tu propia cuenta.</span>}
           </label>
-          <button disabled={editPending} aria-busy={editPending} className="ui-button ui-button-primary">{editPending ? "Guardando…" : "Guardar cambios"}</button>
+          <Button variant="primary" loading={editPending}>{editPending ? "Guardando…" : "Guardar cambios"}</Button>
         </form>}
       </CreateDialog>
     </section>

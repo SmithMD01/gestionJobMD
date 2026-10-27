@@ -10,6 +10,7 @@ import { ViewDetailsDialog } from "../view-details-dialog";
 import { CompanyForm } from "./company-form";
 import { CompanyEditForm } from "./company-edit-form";
 import { CompanyMemberSettingsForm } from "./company-member-settings-form";
+import { Button } from "@/components/ui/button";
 import type { AssignableUser, CompanyMember } from "./company-member-selector";
 
 type CompanyRow = { id: string; name: string; isActive: boolean; memberIds: string[]; memberNames: string[]; members: CompanyMember[] };
@@ -86,7 +87,7 @@ export function CompaniesPanel({ companies, activeId, canManage, users, currentU
           <div className="sm:col-span-2"><dt className="text-sm text-muted">Usuarios asignados</dt><dd className="mt-2 space-y-2">
             {selectedCompany.members.length === 0 ? <span className="text-sm text-muted">Sin usuarios asignados</span> : selectedCompany.members.map((member) => <div key={member.id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
               <span className="min-w-0"><span className="block truncate text-sm font-medium text-ink">{member.name}</span><span className="block truncate text-xs text-muted">{member.email} · {member.banned ? "Acceso inactivo" : "Acceso activo"}{member.visibleInActivityAssignments ? " · Visible en actividades" : " · No visible en actividades"}</span></span>
-              {canManage && <button type="button" className="ui-button ui-button-secondary !px-2.5 !py-1.5 !text-xs" onClick={() => { setSelectedCompany(null); setEditingMember({ companyId: selectedCompany.id, member }); }}>Configurar</button>}
+              {canManage && <Button type="button" variant="secondary" size="compact" className="!px-2.5 !py-1.5 !text-xs" onClick={() => { setSelectedCompany(null); setEditingMember({ companyId: selectedCompany.id, member }); }}>Configurar</Button>}
             </div>)}
           </dd></div>
         </dl>}

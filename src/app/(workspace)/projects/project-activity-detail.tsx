@@ -3,6 +3,7 @@
 import { ViewDetailsDialog } from "../view-details-dialog";
 import { activityCode, StatusBadge, typeLabels, type ProjectActivity } from "./project-activities";
 import { parseChecklist } from "@/modules/projects/checklist";
+import { Button } from "@/components/ui/button";
 
 export function ProjectActivityDetail({ activity, stageName, moduleName, open, onOpenChange, checklistPending = false, onToggleChecklist, onEdit, onDelete }: { activity: ProjectActivity | null; stageName?: string; moduleName?: string; open: boolean; onOpenChange: (open: boolean) => void; checklistPending?: boolean; onToggleChecklist?: (index: number) => void; onEdit?: () => void; onDelete?: () => void }) {
   if (!activity) return null;
@@ -23,7 +24,7 @@ export function ProjectActivityDetail({ activity, stageName, moduleName, open, o
       <div><p className="text-xs uppercase tracking-wide text-subtle">Responsables</p><p className="mt-1 text-ink">{activity.responsibleNames?.join(", ") || "Sin responsables"}</p></div>
       <div><p className="text-xs uppercase tracking-wide text-subtle">Descripción</p><p className="mt-1 whitespace-pre-wrap leading-6 text-ink">{activity.observations || "Sin descripción"}</p></div>
       <div><p className="text-xs uppercase tracking-wide text-subtle">Checklist</p>{checklist.length === 0 ? <p className="mt-1 text-muted">Sin elementos.</p> : <ul className="mt-2 space-y-2">{checklist.map((item, index) => <li key={`${item.text}-${index}`}><label className="flex items-start gap-2"><input type="checkbox" checked={item.done} disabled={!onToggleChecklist || checklistPending} onChange={() => onToggleChecklist?.(index)} className="mt-0.5" /><span className={item.done ? "text-muted line-through" : "text-ink"}>{item.text}</span></label></li>)}</ul>}</div>
-      {(onEdit || onDelete) && <div className="flex justify-end gap-2 border-t border-line pt-4"><button type="button" onClick={onEdit} className="ui-button ui-button-secondary">Editar</button><button type="button" onClick={onDelete} className="ui-button ui-button-danger">Eliminar</button></div>}
+      {(onEdit || onDelete) && <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" onClick={onEdit}>Editar</Button><Button type="button" variant="danger" onClick={onDelete}>Eliminar</Button></div>}
     </div>
   </ViewDetailsDialog>;
 }
