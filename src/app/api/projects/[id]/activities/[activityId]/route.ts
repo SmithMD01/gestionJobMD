@@ -53,9 +53,15 @@ export async function PATCH(request: Request, context: Context) {
 }
 export async function DELETE(request: Request, context: Context) {
   const result = await access(request, context); if (result.error) return result.error; if (!result.id || !result.activityId) return result.auth.response;
-  const [deleted] = await db.delete(activity).where(and(eq(activity.id, result.activityId), eq(activity.projectId, result.id))).returning({ id: activity.id, title: activity.title });
+  const deleted = await db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: activity.id, title: activity.title }).from(activity).where(and(eq(activity.id, result.activityId!), eq(activity.projectId, result.id!)));
+    if (!existing) return null;
+    await tx.delete(activityResponsible).where(eq(activityResponsible.activityId, result.activityId!));
+    await tx.delete(activity).where(eq(activity.id, existing.id));
+    await tx.insert(projectAuditEvent).values({ projectId: result.id!, actorUserId: result.auth.session!.user.id, action: "activity.deleted" });
+    await tx.insert(auditEvent).values({ companyId: result.auth.company!.id, actorUserId: result.auth.session!.user.id, entityType: "activity", entityId: existing.id, entityName: existing.title, action: "activity.deleted", changeDetail: deletedDetail("la actividad", existing.title) });
+    return existing;
+  });
   if (!deleted) return Response.json({ error: "Actividad no encontrada" }, { status: 404 });
-  await db.insert(projectAuditEvent).values({ projectId: result.id, actorUserId: result.auth.session!.user.id, action: "activity.deleted" });
-  await db.insert(auditEvent).values({ companyId: result.auth.company!.id, actorUserId: result.auth.session!.user.id, entityType: "activity", entityId: deleted.id, entityName: deleted.title, action: "activity.deleted", changeDetail: deletedDetail("la actividad", deleted.title) });
   return new Response(null, { status: 204 });
 }

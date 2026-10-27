@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { projectStatusLabel, type ProjectStatus } from "@/modules/projects/constants";
 
-type InitialProject = {
+export type ProjectFormProject = {
   id: string;
   name: string;
   objective: string;
@@ -14,7 +14,7 @@ type InitialProject = {
   endDate: string | null;
 };
 
-export function ProjectForm({ initial, embedded = false, onPendingChange }: { initial?: InitialProject; embedded?: boolean; onPendingChange?: (pending: boolean) => void }) {
+export function ProjectForm({ initial, embedded = false, onPendingChange, onSaved }: { initial?: ProjectFormProject; embedded?: boolean; onPendingChange?: (pending: boolean) => void; onSaved?: (project: ProjectFormProject) => void }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -45,7 +45,8 @@ export function ProjectForm({ initial, embedded = false, onPendingChange }: { in
         setError(result.error || "No se pudo guardar el proyecto.");
         return;
       }
-      router.push(`/projects/${result.project.id}`);
+      if (onSaved) onSaved(result.project as ProjectFormProject);
+      else router.push(`/projects/${result.project.id}`);
       router.refresh();
     } catch {
       setError("No se pudo conectar. Vuelve a intentarlo.");

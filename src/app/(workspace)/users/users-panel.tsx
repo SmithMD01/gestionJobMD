@@ -3,8 +3,8 @@
 import { useCallback, useRef, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { CreateDialog } from "../create-dialog";
-import { DataTable, TablePagination, type TableColumn } from "../data-table";
-import { ModuleHeader, ModuleToolbar } from "../module-layout";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
+import { ModuleHeader } from "../module-layout";
 import { RowActions } from "../row-actions";
 import { ViewDetailsDialog } from "../view-details-dialog";
 
@@ -233,17 +233,24 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
         </CreateDialog>
       } />
       {accountMessage && <p role={accountMessageIsError ? "alert" : "status"} className={`mt-3 text-sm ${accountMessageIsError ? "text-danger" : "text-muted"}`}>{accountMessage}</p>}
-      <ModuleToolbar>
-      <form onSubmit={(event) => { event.preventDefault(); const value = searchDraft.trim(); setSearch(value); setPage(0); void load(0, pageSize, value); }} className="flex min-w-0 flex-1 items-center gap-3">
+      {listError && <p role="alert" className="mt-4 text-sm text-danger">{listError} <button type="button" onClick={() => void load(page, pageSize, search)} className="underline">Reintentar</button></p>}
+      <DataTable
+        rows={users}
+        columns={columns}
+        rowKey={(user) => user.id}
+        loading={loading}
+        emptyMessage={listError ? "No se pueden mostrar las cuentas en este momento." : search ? "No hay cuentas que coincidan con ese correo." : "Aún no hay cuentas para mostrar."}
+        toolbar={<form onSubmit={(event) => { event.preventDefault(); const value = searchDraft.trim(); setSearch(value); setPage(0); void load(0, pageSize, value); }} className="flex min-w-0 flex-1 items-center gap-3">
         <label className="min-w-52 flex-1 text-sm font-medium"><span className="sr-only">Buscar por correo</span>
           <input type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Buscar por correo" className="ui-field block" />
         </label>
         <button type="submit" disabled={loading} className="ui-button ui-button-secondary">Buscar</button>
-      </form>
-      </ModuleToolbar>
-      {listError && <p role="alert" className="mt-4 text-sm text-danger">{listError} <button type="button" onClick={() => void load(page, pageSize, search)} className="underline">Reintentar</button></p>}
-      <DataTable rows={users} columns={columns} rowKey={(user) => user.id} loading={loading} emptyMessage={listError ? "No se pueden mostrar las cuentas en este momento." : search ? "No hay cuentas que coincidan con ese correo." : "Aún no hay cuentas para mostrar."} />
-      <TablePagination page={page} pageSize={pageSize} total={total} disabled={loading || !!listError} onPageChange={(next) => { setPage(next); void load(next, pageSize, search); }} onPageSizeChange={(size) => { setPageSize(size); setPage(0); void load(0, size, search); }} />
+        </form>}
+        pagination={{ mode: "server", page, pageSize, total, disabled: loading || !!listError,
+          onPageChange: (next) => { setPage(next); void load(next, pageSize, search); },
+          onPageSizeChange: (size) => { setPageSize(size); setPage(0); void load(0, size, search); },
+        }}
+      />
       <ViewDetailsDialog title="Detalle del usuario" open={selectedUser !== null} onOpenChange={(open) => { if (!open) setSelectedUser(null); }}>
         {selectedUser && <dl className="grid gap-4 sm:grid-cols-2">
           <div><dt className="text-sm text-muted">Nombre</dt><dd className="mt-1 font-medium">{selectedUser.name}</dd></div>

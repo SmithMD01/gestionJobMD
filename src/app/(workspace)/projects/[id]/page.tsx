@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -12,6 +11,7 @@ import { activityResponsiblesInCompany } from "@/modules/projects/access";
 import { ProjectSections } from "../project-sections";
 import type { ProjectScheduleItem as ProjectScheduleItemType } from "../project-schedule";
 import { ProjectStatusSelect } from "../project-status-select";
+import { ProjectEditDialogButton } from "../project-edit-dialog-button";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
@@ -49,11 +49,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
         <div className="flex flex-wrap items-start gap-2">
           <ProjectStatusSelect project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} />
-          <Link href={`/projects/${item.id}/edit`} className="ui-button ui-button-secondary">Editar</Link>
+          <ProjectEditDialogButton project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} />
         </div>
       </header>
 
-      <ProjectSections projectId={item.id} contacts={contacts} activities={activitiesWithResponsibles} developmentStages={developmentStages} teamMembers={teamMembers} modules={modules} documents={documents} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, color: row.color as ProjectScheduleItemType["color"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
+      <ProjectSections projectId={item.id} contacts={contacts} activities={activitiesWithResponsibles} developmentStages={developmentStages} teamMembers={teamMembers} modules={modules} documents={documents} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
 
     </main>
   );

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DataTable, TablePagination, type TableColumn } from "../data-table";
-import { ModuleHeader, ModuleToolbar } from "../module-layout";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
+import { ModuleHeader } from "../module-layout";
 
 export type AuditRow = { id: string; entityType: string; entityId: string | null; entityName: string; action: string; changeDetail: string; actorName: string; createdAt: string };
 
@@ -32,11 +32,7 @@ function ChangeDetail({ value }: { value: string }) {
 export function AuditPanel({ companyName, rows }: { companyName: string; rows: AuditRow[] }) {
   const [entity, setEntity] = useState("all");
   const [action, setAction] = useState("all");
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
   const actions = useMemo(() => Array.from(new Set(rows.map((row) => row.action))).sort(), [rows]);
-  const filtered = useMemo(() => rows.filter((row) => (entity === "all" || row.entityType === entity) && (action === "all" || row.action === action)), [rows, entity, action]);
-  const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const columns: TableColumn<AuditRow>[] = [
     { key: "date", label: "Fecha", className: "whitespace-nowrap", render: (row) => <time dateTime={row.createdAt}>{formatDate(row.createdAt)}</time> },
     { key: "entity", label: "Módulo", render: (row) => entityLabels[row.entityType] ?? row.entityType },
@@ -48,11 +44,18 @@ export function AuditPanel({ companyName, rows }: { companyName: string; rows: A
 
   return <>
     <ModuleHeader title="Auditoría" description={`${companyName} · Registro de creación, edición y eliminación de proyectos, actividades y empresas.`} />
-    <ModuleToolbar>
-      <label className="min-w-44 text-sm font-medium">Módulo<select value={entity} onChange={(event) => { setEntity(event.target.value); setPage(0); }} className="ui-field mt-1 block"><option value="all">Todos</option>{Object.entries(entityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="min-w-56 text-sm font-medium">Acción<select value={action} onChange={(event) => { setAction(event.target.value); setPage(0); }} className="ui-field mt-1 block"><option value="all">Todas</option>{actions.map((value) => <option key={value} value={value}>{actionLabels[value] ?? value}</option>)}</select></label>
-    </ModuleToolbar>
-    <DataTable className="!text-xs" rows={visible} columns={columns} rowKey={(row) => row.id} emptyMessage="Aún no hay eventos de auditoría para esta empresa." />
-    <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(0); }} />
+    <DataTable
+      className="!text-xs"
+      rows={rows}
+      filterKey={JSON.stringify([entity, action])}
+      filterRow={(row) => (entity === "all" || row.entityType === entity) && (action === "all" || row.action === action)}
+      toolbar={<>
+        <label className="min-w-44 text-sm font-medium">Módulo<select value={entity} onChange={(event) => setEntity(event.target.value)} className="ui-field mt-1 block"><option value="all">Todos</option>{Object.entries(entityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="min-w-56 text-sm font-medium">Acción<select value={action} onChange={(event) => setAction(event.target.value)} className="ui-field mt-1 block"><option value="all">Todas</option>{actions.map((value) => <option key={value} value={value}>{actionLabels[value] ?? value}</option>)}</select></label>
+      </>}
+      columns={columns}
+      rowKey={(row) => row.id}
+      emptyMessage="Aún no hay eventos de auditoría para esta empresa."
+    />
   </>;
 }

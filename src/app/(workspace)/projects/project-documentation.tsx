@@ -3,7 +3,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { CreateDialog } from "../create-dialog";
-import { DataTable, type TableColumn } from "../data-table";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
 import { documentationGroups, documentationStatusLabels, documentationStatuses, type DocumentationStatus } from "@/modules/projects/documentation";
 
@@ -200,7 +200,7 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
                   <div><h3 id={`document-type-${group.id}-${typeId}`} className="text-sm font-semibold text-ink">{typeLabel}</h3>{versions.length === 0 && <p className="mt-1 text-xs text-muted">Aún no hay versiones adjuntas.</p>}</div>
                   {versions.length > 0 && <button type="button" onClick={() => setUpload({ groupId: group.id, typeId, title: versions[0]?.title })} className="ui-button ui-button-secondary !px-2.5 !py-1.5 !text-xs">Nueva versión</button>}
                 </div>
-                {versions.length > 0 && <DataTable className="!mt-2 !text-xs" rows={versions} rowKey={(item) => item.id} emptyMessage="Sin versiones" columns={columns} />}
+                {versions.length > 0 && <DataTable className="!text-xs" containerClassName="!mt-2" pagination={false} rows={versions} rowKey={(item) => item.id} emptyMessage="Sin versiones" columns={columns} />}
               </section>;
             })}
           </div>

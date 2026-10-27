@@ -134,6 +134,13 @@
       "when": 1793037247786,
       "tag": "0018_bright_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793130075478,
+      "tag": "0019_flimsy_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

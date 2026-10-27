@@ -12,6 +12,7 @@ const scheduleItemInput = z.object({
   title: z.string().trim().min(1).max(180),
   description: z.string().trim().max(2000),
   color: z.enum(["slate", "blue", "violet", "amber", "green", "rose"]),
+  status: z.enum(["planned", "in_progress", "completed"]).default("planned"),
   startDate: z.iso.date().nullable(),
   endDate: z.iso.date().nullable(),
 }).refine((value) => !value.startDate || !value.endDate || value.endDate >= value.startDate, {

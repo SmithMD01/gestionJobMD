@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CreateDialog } from "../create-dialog";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { ActivityForm, activityCode, type ProjectActivity } from "./project-activities";
 import type { ProjectModule } from "./project-modules";
 import { RowActions } from "../row-actions";
@@ -91,14 +92,22 @@ export function ProjectDevelopment({ projectId, activities: initialActivities, s
 
     {modules.length > 0 && <div className="mt-3 max-w-xs"><label className="block text-xs font-medium text-subtle">Filtrar por módulo<select value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)} className="ui-field mt-1 block"><option value="all">Todos los módulos</option>{modules.map((module) => <option key={module.id} value={module.id}>{module.parentId ? "↳ " : ""}{module.name}</option>)}</select></label></div>}
 
-    {view === "table" ? <div className="mt-4 overflow-x-auto rounded-xl border border-line">
-      <table className="ui-table !text-xs"><thead><tr><th>Código</th><th>Actividad</th><th>Módulo</th><th>Etapa</th><th>Fechas</th><th>Responsables</th><th>Acciones</th></tr></thead>
-        <tbody>{development.length === 0 ? <tr><td colSpan={7} className="text-muted">No hay actividades de desarrollo.</td></tr> : development.map((item) => <tr key={item.id}>
-          <td><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-primary">{activityCode(item)}</span></td><td className="font-medium text-ink">{item.title}</td><td className="text-muted">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</td><td><span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${stageColor(stages.find((stage) => stage.id === item.developmentStageId)?.color ?? "neutral")}`} />{stages.find((stage) => stage.id === item.developmentStageId)?.name ?? "Sin etapa"}</span></td>
-          <td>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</td><td>{item.responsibleNames?.join(", ") || "—"}</td><td><RowActions label={item.title} actions={[{ label: "Ver detalle", onSelect: () => { setDetail(item); setDetailSource("table"); } }, { label: "Editar", onSelect: () => setEditor(item) }, { label: "Eliminar", tone: "danger", onSelect: () => { setError(""); setDeleting(item); } }]} /></td>
-        </tr>)}</tbody>
-      </table>
-    </div> : <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+    {view === "table" ? <DataTable
+      className="!text-xs"
+      rows={development}
+      filterKey={JSON.stringify([moduleFilter, showCancelled])}
+      rowKey={(item) => item.id}
+      emptyMessage="No hay actividades de desarrollo."
+      columns={[
+        { key: "code", label: "Código", render: (item) => <span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-primary">{activityCode(item)}</span> },
+        { key: "title", label: "Actividad", render: (item) => <span className="font-medium text-ink">{item.title}</span> },
+        { key: "module", label: "Módulo", render: (item) => <span className="text-muted">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</span> },
+        { key: "stage", label: "Etapa", render: (item) => <span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${stageColor(stages.find((stage) => stage.id === item.developmentStageId)?.color ?? "neutral")}`} />{stages.find((stage) => stage.id === item.developmentStageId)?.name ?? "Sin etapa"}</span> },
+        { key: "dates", label: "Fechas", render: (item) => <>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</> },
+        { key: "responsibles", label: "Responsables", render: (item) => item.responsibleNames?.join(", ") || "—" },
+        { key: "actions", label: "Acciones", render: (item) => <RowActions label={item.title} actions={[{ label: "Ver detalle", onSelect: () => { setDetail(item); setDetailSource("table"); } }, { label: "Editar", onSelect: () => setEditor(item) }, { label: "Eliminar", tone: "danger", onSelect: () => { setError(""); setDeleting(item); } }]} /> },
+      ] satisfies TableColumn<ProjectActivity>[]}
+    /> : <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
       {visibleStages.map((stage) => <section key={stage.id} className="w-64 shrink-0 rounded-lg border border-line bg-canvas p-3"><h3 className="flex items-center gap-2 text-xs font-semibold text-ink"><span className={`size-2 rounded-full ${stageColor(stage.color)}`} />{stage.name}</h3><div className="mt-3 space-y-2">
         {development.filter((item) => (stage.id === "cancelled" ? item.status === "cancelled" : item.developmentStageId === stage.id)).map((item) => <article key={item.id} role="button" tabIndex={0} onClick={() => { setDetail(item); setDetailSource("kanban"); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetail(item); setDetailSource("kanban"); } }} className="cursor-pointer rounded-md border border-line bg-surface p-2.5 text-xs transition-colors hover:border-ink/40 hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink"><p className="flex flex-wrap items-center gap-1.5"><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold text-on-primary">{activityCode(item)}</span><span className="font-medium text-ink">{item.title}</span></p><p className="mt-1 text-subtle">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</p><p className="mt-1 text-subtle">{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</p><p className="mt-1 text-subtle">{item.responsibleNames?.join(", ") || "Sin responsables"}</p></article>)}
       </div></section>)}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreateDialog } from "../create-dialog";
-import { DataTable, TablePagination, type TableColumn } from "../data-table";
-import { ModuleHeader, ModuleToolbar } from "../module-layout";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
+import { ModuleHeader } from "../module-layout";
 import { RowActions } from "../row-actions";
 import { ViewDetailsDialog } from "../view-details-dialog";
 import { CompanyForm } from "./company-form";
@@ -20,16 +20,12 @@ export function CompaniesPanel({ companies, activeId, canManage, users, currentU
   const [createOpen, setCreateOpen] = useState(false);
   const [createPending, setCreatePending] = useState(false);
   const [editPending, setEditPending] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
   const [createdMessage, setCreatedMessage] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyRow | null>(null);
   const [editingCompany, setEditingCompany] = useState<CompanyRow | null>(null);
   const [editingMember, setEditingMember] = useState<{ companyId: string; member: CompanyMember } | null>(null);
   const [memberPending, setMemberPending] = useState(false);
   const [actionError, setActionError] = useState("");
-  const filtered = useMemo(() => companies.filter((item) => item.name.toLocaleLowerCase("es-PE").includes(query.trim().toLocaleLowerCase("es-PE"))), [companies, query]);
-  const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
   const columns: TableColumn<CompanyRow>[] = [
     { key: "name", label: "Empresa", className: "w-[40%]", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
     { key: "members", label: "Usuarios", className: "w-[20%]", render: (item) => `${item.memberNames.length} asignado${item.memberNames.length === 1 ? "" : "s"}` },
@@ -66,17 +62,23 @@ export function CompaniesPanel({ companies, activeId, canManage, users, currentU
   return (
     <>
       <ModuleHeader title="Empresas" description="Cada empresa mantiene sus proyectos separados. Solo puedes elegir empresas a las que perteneces." action={
-        canManage && <CreateDialog title="Nueva empresa" triggerLabel="Nueva empresa" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><CompanyForm users={users} currentUserId={currentUserId} onPendingChange={setCreatePending} onCreated={() => { setCreatedMessage("Empresa creada correctamente."); setPage(0); setCreateOpen(false); }} /></CreateDialog>
+        canManage && <CreateDialog title="Nueva empresa" triggerLabel="Nueva empresa" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><CompanyForm users={users} currentUserId={currentUserId} onPendingChange={setCreatePending} onCreated={() => { setCreatedMessage("Empresa creada correctamente."); setCreateOpen(false); }} /></CreateDialog>
       } />
       {createdMessage && <p role="status" className="mt-4 text-sm text-success">{createdMessage}</p>}
-      <ModuleToolbar>
-        <label className="min-w-52 flex-1 text-sm font-medium"><span className="sr-only">Buscar empresa</span>
-          <input type="search" value={query} placeholder="Buscar empresa" onChange={(event) => { setQuery(event.target.value); setPage(0); }} className="ui-field block" />
-        </label>
-      </ModuleToolbar>
       {actionError && <p role="alert" className="mt-4 text-sm text-danger">{actionError}</p>}
-      <DataTable rows={visible} columns={columns} rowKey={(item) => item.id} emptyMessage={companies.length === 0 ? "Aún no hay empresas disponibles." : "No hay empresas que coincidan con la búsqueda."} />
-      <TablePagination page={page} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(0); }} />
+      <DataTable
+        rows={companies}
+        filterKey={query}
+        filterRow={(item) => item.name.toLocaleLowerCase("es-PE").includes(query.trim().toLocaleLowerCase("es-PE"))}
+        toolbar={<>
+        <label className="min-w-52 flex-1 text-sm font-medium"><span className="sr-only">Buscar empresa</span>
+          <input type="search" value={query} placeholder="Buscar empresa" onChange={(event) => setQuery(event.target.value)} className="ui-field block" />
+        </label>
+        </>}
+        columns={columns}
+        rowKey={(item) => item.id}
+        emptyMessage={companies.length === 0 ? "Aún no hay empresas disponibles." : "No hay empresas que coincidan con la búsqueda."}
+      />
       <ViewDetailsDialog title="Detalle de la empresa" open={selectedCompany !== null} onOpenChange={(open) => { if (!open) setSelectedCompany(null); }}>
         {selectedCompany && <dl className="grid gap-4 sm:grid-cols-2">
           <div><dt className="text-sm text-muted">Nombre</dt><dd className="mt-1 font-medium">{selectedCompany.name}</dd></div>

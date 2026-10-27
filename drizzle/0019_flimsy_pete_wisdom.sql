@@ -1,0 +1,2 @@
+CREATE TYPE "public"."project_schedule_item_status" AS ENUM('planned', 'in_progress', 'completed');--> statement-breakpoint
+ALTER TABLE "project_schedule_item" ADD COLUMN "status" "project_schedule_item_status" DEFAULT 'planned' NOT NULL;

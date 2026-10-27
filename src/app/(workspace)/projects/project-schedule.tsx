@@ -2,11 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import { CreateDialog } from "../create-dialog";
-import { DataTable, type TableColumn } from "../data-table";
+import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
 
 export type ProjectSchedule = { id: string; status: "draft" | "confirmed"; confirmedAt: string | null };
-export type ProjectScheduleItem = { id: string; title: string; description: string; color: "slate" | "blue" | "violet" | "amber" | "green" | "rose"; startDate: string | null; endDate: string | null; sortOrder: number };
+export type ProjectScheduleItemStatus = "planned" | "in_progress" | "completed";
+export type ProjectScheduleItem = { id: string; title: string; description: string; color: "slate" | "blue" | "violet" | "amber" | "green" | "rose"; status: ProjectScheduleItemStatus; startDate: string | null; endDate: string | null; sortOrder: number };
 
 const scheduleColors = {
   slate: { label: "Gris", bar: "bg-slate-500", dot: "bg-slate-500" },
@@ -16,6 +17,8 @@ const scheduleColors = {
   green: { label: "Verde", bar: "bg-green-500", dot: "bg-green-500" },
   rose: { label: "Rojo", bar: "bg-rose-500", dot: "bg-rose-500" },
 } as const;
+const scheduleStatusLabels: Record<ProjectScheduleItemStatus, string> = { planned: "Pendiente", in_progress: "En desarrollo", completed: "Completada" };
+const scheduleStatusDots: Record<ProjectScheduleItemStatus, string> = { planned: "bg-slate-400", in_progress: "bg-blue-500", completed: "bg-green-500" };
 
 function formatDate(value: string | null) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString("es-PE") : "—"; }
 function draftId() { return `draft-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`; }
@@ -26,12 +29,17 @@ function dateAtMidnight(value: string) { return new Date(`${value}T00:00:00`); }
 function dayKey(value: Date) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; }
 function addDays(value: Date, amount: number) { const next = new Date(value); next.setDate(next.getDate() + amount); return next; }
 function dayDifference(start: Date, end: Date) { return Math.round((end.getTime() - start.getTime()) / DAY_MS); }
+function localDayKey(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
 
 function csvCell(value: string | number | null) { return `"${String(value ?? "").replaceAll('"', '""')}"`; }
 function exportSchedule(items: ProjectScheduleItem[], projectId: string) {
   const rows = [
-    ["Orden", "Etapa o actividad", "Inicio", "Fin", "Color", "Descripción"],
-    ...items.map((item, index) => [String(index + 1), item.title, item.startDate ?? "", item.endDate ?? "", scheduleColors[item.color]?.label ?? "", item.description]),
+    ["Orden", "Etapa o actividad", "Estado", "Inicio", "Fin", "Color", "Descripción"],
+    ...items.map((item, index) => [String(index + 1), item.title, scheduleStatusLabels[item.status], item.startDate ?? "", item.endDate ?? "", scheduleColors[item.color]?.label ?? "", item.description]),
   ];
   const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`;
   const link = document.createElement("a");
@@ -61,6 +69,7 @@ function ScheduleGantt({ items }: { items: ProjectScheduleItem[] }) {
     return groups;
   }, []);
   const rowsWithoutDates = items.filter((item) => !item.startDate && !item.endDate);
+  const today = localDayKey(new Date());
 
   return <div className="mt-4 space-y-4">
     <div className="overflow-x-auto rounded-xl border border-line bg-surface pb-2">
@@ -77,10 +86,11 @@ function ScheduleGantt({ items }: { items: ProjectScheduleItem[] }) {
           const end = dateAtMidnight(item.endDate ?? item.startDate!);
           const offset = dayDifference(firstDate, start);
           const duration = dayDifference(start, end) + 1;
+          const overdueDays = item.status !== "completed" && item.endDate && item.endDate < today ? dayDifference(end, dateAtMidnight(today)) : 0;
           return <div key={item.id} className="grid min-h-12 border-b border-line last:border-b-0" style={{ gridTemplateColumns: `minmax(11rem, 14rem) ${timelineWidth}px` }}>
             <div className="sticky left-0 z-20 flex min-w-0 items-center border-r border-line bg-surface px-3 py-2"><span className="truncate text-xs font-medium text-ink" title={item.title}>{item.title}</span></div>
             <div className="relative flex items-center" style={{ backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${dayWidth - 1}px, var(--color-line) ${dayWidth - 1}px, var(--color-line) ${dayWidth}px)` }}>
-              <span title={`${item.title}: ${formatDate(item.startDate ?? item.endDate)} – ${formatDate(item.endDate ?? item.startDate)}${item.description ? ` · ${item.description}` : ""}`} className={`absolute z-10 h-6 min-w-3 rounded-md px-2 text-[10px] leading-6 text-on-primary shadow-sm ${scheduleColors[item.color]?.bar ?? scheduleColors.blue.bar}`} style={{ left: `${offset * dayWidth + 2}px`, width: `${Math.max(duration * dayWidth - 4, 12)}px` }} />
+              <span title={`${item.title}: ${scheduleStatusLabels[item.status]} · ${formatDate(item.startDate ?? item.endDate)} – ${formatDate(item.endDate ?? item.startDate)}${overdueDays > 0 ? ` · Atrasada ${overdueDays} días` : ""}${item.description ? ` · ${item.description}` : ""}`} aria-label={`${item.title}${overdueDays > 0 ? `, atrasada ${overdueDays} días` : ""}`} className={`absolute z-10 flex h-6 min-w-3 items-center overflow-hidden whitespace-nowrap rounded-md px-2 text-[10px] font-medium leading-6 text-on-primary shadow-sm ${overdueDays > 0 ? "bg-danger ring-2 ring-danger/25" : scheduleColors[item.color]?.bar ?? scheduleColors.blue.bar} ${item.status === "completed" ? "opacity-60" : ""}`} style={{ left: `${offset * dayWidth + 2}px`, width: `${Math.max(duration * dayWidth - 4, 12)}px` }}>{overdueDays > 0 ? `${overdueDays} d atraso` : ""}</span>
             </div>
           </div>;
         })}
@@ -100,12 +110,13 @@ function ScheduleRowForm({ initial, onSaved, onPendingChange }: { initial?: Proj
     const endDate = String(form.get("endDate") || "") || null;
     if (startDate && endDate && endDate < startDate) { setError("La fecha final debe ser igual o posterior a la fecha inicial."); return; }
     onPendingChange(true);
-    onSaved({ id: initial?.id ?? draftId(), title: String(form.get("title") ?? "").trim(), description: String(form.get("description") ?? "").trim(), color: (String(form.get("color") || "blue") as ProjectScheduleItem["color"]), startDate, endDate, sortOrder: initial?.sortOrder ?? 0 });
+    onSaved({ id: initial?.id ?? draftId(), title: String(form.get("title") ?? "").trim(), description: String(form.get("description") ?? "").trim(), color: (String(form.get("color") || "blue") as ProjectScheduleItem["color"]), status: (String(form.get("status") || "planned") as ProjectScheduleItemStatus), startDate, endDate, sortOrder: initial?.sortOrder ?? 0 });
     onPendingChange(false);
   }
   return <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
     <label className="block text-sm font-medium sm:col-span-2">Nombre de la fila<input name="title" required maxLength={180} defaultValue={initial?.title ?? ""} className="ui-field mt-1 block" placeholder="Ej. Desarrollo de módulo" /></label>
     <label className="block text-sm font-medium">Color<select name="color" defaultValue={initial?.color ?? "blue"} className="ui-field mt-1 block">{Object.entries(scheduleColors).map(([value, color]) => <option key={value} value={value}>{color.label}</option>)}</select></label>
+    <label className="block text-sm font-medium">Estado<select name="status" defaultValue={initial?.status ?? "planned"} className="ui-field mt-1 block">{Object.entries(scheduleStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     <label className="block text-sm font-medium">Fecha de inicio<input name="startDate" type="date" defaultValue={initial?.startDate ?? ""} className="ui-field mt-1 block" /></label>
     <label className="block text-sm font-medium">Fecha final<input name="endDate" type="date" defaultValue={initial?.endDate ?? ""} className="ui-field mt-1 block" /></label>
     <label className="block text-sm font-medium sm:col-span-2">Descripción<textarea name="description" maxLength={2000} rows={3} defaultValue={initial?.description ?? ""} className="ui-field mt-1 block" placeholder="Notas opcionales de esta etapa" /></label>
@@ -141,7 +152,7 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
     if (!draftItems.length) { setError("Añade al menos una fila antes de guardar el cronograma."); return; }
     setPending(true); setError("");
     try {
-      const response = await fetch(`/api/projects/${projectId}/schedule`, { method: schedule ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: draftItems.map(({ title, description, color, startDate, endDate }) => ({ title, description, color, startDate, endDate })) }) });
+      const response = await fetch(`/api/projects/${projectId}/schedule`, { method: schedule ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: draftItems.map(({ title, description, color, status, startDate, endDate }) => ({ title, description, color, status, startDate, endDate })) }) });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.schedule) throw new Error(result?.error || "No se pudo guardar el cronograma.");
       setSchedule({ id: result.schedule.id, status: result.schedule.status, confirmedAt: result.schedule.confirmedAt });
@@ -153,6 +164,7 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
   const readOnlyColumns: TableColumn<ProjectScheduleItem>[] = [
     { key: "order", label: "#", className: "w-12", render: (_item, index) => index + 1 } as TableColumn<ProjectScheduleItem>,
     { key: "title", label: "Etapa o actividad", render: (item) => <span className="flex items-center gap-2 font-medium text-ink"><span className={`size-2 shrink-0 rounded-full ${scheduleColors[item.color]?.dot ?? scheduleColors.blue.dot}`} aria-hidden="true" />{item.title}</span> },
+    { key: "status", label: "Estado", render: (item) => <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`size-2 rounded-full ${scheduleStatusDots[item.status]}`} aria-hidden="true" />{scheduleStatusLabels[item.status]}</span> },
     { key: "start", label: "Inicio", render: (item) => formatDate(item.startDate) },
     { key: "end", label: "Fin", render: (item) => formatDate(item.endDate) },
     { key: "description", label: "Descripción", render: (item) => <span className="block max-w-sm truncate text-muted" title={item.description || "—"}>{item.description || "—"}</span> },
@@ -167,10 +179,10 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     {editing ? <>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><button type="button" onClick={() => setRowEditor(null)} className="ui-button ui-button-secondary">Añadir fila</button></div>
-      <DataTable className="!text-xs" rows={draftItems} columns={editableColumns} rowKey={(item) => item.id} emptyMessage="Añade la primera fila del cronograma." />
+      <DataTable className="!text-xs" pagination={false} rows={draftItems} columns={editableColumns} rowKey={(item) => item.id} emptyMessage="Añade la primera fila del cronograma." />
       <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={cancelEditing} disabled={pending} className="ui-button ui-button-secondary">Cancelar</button><button type="button" onClick={() => void saveSchedule()} disabled={pending} className="ui-button ui-button-primary">{pending ? "Guardando…" : "Guardar cronograma"}</button></div>
     </> : <>
-      {view === "table" ? <DataTable className="!text-xs" rows={items} columns={readOnlyColumns} rowKey={(item) => item.id} emptyMessage="Aún no hay filas en el cronograma." /> : <ScheduleGantt items={items} />}
+      {view === "table" ? <DataTable className="!text-xs" pagination={false} rows={items} columns={readOnlyColumns} rowKey={(item) => item.id} emptyMessage="Aún no hay filas en el cronograma." /> : <ScheduleGantt items={items} />}
     </>}
     <CreateDialog title={rowEditor ? "Editar fila del cronograma" : "Añadir fila al cronograma"} triggerLabel="Añadir fila" open={rowEditor !== undefined} onOpenChange={(open) => { if (!open) setRowEditor(undefined); }} showTrigger={false}><ScheduleRowForm initial={rowEditor ?? undefined} onSaved={saveRow} onPendingChange={() => undefined} /></CreateDialog>
   </div>;
