@@ -6,8 +6,9 @@ import { eq } from "drizzle-orm";
 import { db } from "../src/db/client";
 import { account, user } from "../src/db/auth-schema";
 import { securityEvent } from "../src/db/schema";
-import { project, projectAuditEvent } from "../src/modules/projects/schema";
-import { company, companyMember } from "../src/modules/companies/schema";
+import { project, projectAuditEvent, projectDocument } from "../src/modules/projects/schema";
+import { company, companyMember, companyTeamMember } from "../src/modules/companies/schema";
+import { auditEvent } from "../src/modules/audit/schema";
 
 config({ path: ".env" });
 
@@ -73,6 +74,20 @@ async function main() {
     }
     const payload = await response.json().catch(() => null);
     return { status: response.status, payload };
+  }
+
+  async function uploadDocument(projectId: string, uploadKey: string) {
+    const form = new FormData();
+    form.set("groupId", "functional");
+    form.set("typeId", "srs");
+    form.set("uploadKey", uploadKey);
+    form.set("file", new File(["Contenido de prueba"], "prueba.txt", { type: "text/plain" }));
+    const response = await fetch(new URL(`/api/projects/${projectId}/documents`, baseURL), {
+      method: "POST",
+      headers: { origin: baseURL!, cookie: Array.from(cookieJar, ([key, value]) => `${key}=${value}`).join("; ") },
+      body: form,
+    });
+    return { status: response.status, payload: await response.json().catch(() => null) };
   }
 
   await db.insert(user).values({ id: adminId, name: "Phase 1 test", email, emailVerified: true, role: "admin" });
@@ -141,9 +156,30 @@ async function main() {
     if (changedProject.status !== 200 || changedProject.payload?.project?.status !== "active") {
       throw new Error(`Project update failed: ${changedProject.status}`);
     }
+    const editedProject = await request(`/api/projects/${createdProjectId}`, { ...projectData, status: "active", objective: "Objetivo actualizado en otra sesión" }, "PATCH");
+    if (editedProject.status !== 200) throw new Error(`Project edit before status change failed: ${editedProject.status}`);
+    const changedStatus = await request(`/api/projects/${createdProjectId}/status`, { status: "paused", expectedStatus: "active" }, "PATCH");
+    if (changedStatus.status !== 200 || changedStatus.payload?.project?.status !== "paused" || changedStatus.payload.project.objective !== "Objetivo actualizado en otra sesión") {
+      throw new Error("Status-only update changed other project fields");
+    }
+    const staleStatus = await request(`/api/projects/${createdProjectId}/status`, { status: "completed", expectedStatus: "active" }, "PATCH");
+    if (staleStatus.status !== 409 || staleStatus.payload?.currentStatus !== "paused") {
+      throw new Error(`Stale status update should be rejected with the current status, got ${staleStatus.status}`);
+    }
     const projectEvents = await db.select().from(projectAuditEvent).where(eq(projectAuditEvent.projectId, createdProjectId));
     if (!projectEvents.some((item) => item.action === "project.created") || !projectEvents.some((item) => item.action === "project.updated")) {
       throw new Error("Project changes were not audited");
+    }
+    const repeatedKey = randomUUID();
+    const [firstUpload, repeatedUpload] = await Promise.all([uploadDocument(createdProjectId, repeatedKey), uploadDocument(createdProjectId, repeatedKey)]);
+    if (![firstUpload.status, repeatedUpload.status].sort().every((status, index) => status === [200, 201][index]) ||
+      firstUpload.payload?.document?.id !== repeatedUpload.payload?.document?.id || firstUpload.payload?.document?.version !== 1) {
+      throw new Error("Repeated document upload should create only one first version");
+    }
+    const [secondUpload, thirdUpload] = await Promise.all([uploadDocument(createdProjectId, randomUUID()), uploadDocument(createdProjectId, randomUUID())]);
+    const versions = [secondUpload.payload?.document?.version, thirdUpload.payload?.document?.version].sort();
+    if (secondUpload.status !== 201 || thirdUpload.status !== 201 || versions[0] !== 2 || versions[1] !== 3) {
+      throw new Error("Concurrent document uploads should receive different consecutive versions");
     }
 
     const companyB = await request("/api/companies", { name: "Empresa B de prueba" });
@@ -180,10 +216,23 @@ async function main() {
     const deactivatedCompany = await request(`/api/companies/${companyAId}`, { name: "Empresa A de prueba", isActive: false }, "PATCH");
     if (deactivatedCompany.status !== 200) throw new Error(`Company deactivation failed: ${deactivatedCompany.status}`);
     const inactiveProjects = await request("/api/projects");
-    if (inactiveProjects.status !== 409) throw new Error(`Inactive company projects should be unavailable, got ${inactiveProjects.status}`);
+    if (inactiveProjects.status !== 200 || !inactiveProjects.payload?.projects?.some((item: { id: string }) => item.id === createdProjectId)) {
+      throw new Error(`Inactive company projects should remain readable, got ${inactiveProjects.status}`);
+    }
+    const inactiveProjectsPage = await request("/projects");
+    const inactiveProjectDetail = await request(`/projects/${createdProjectId}`);
+    if (inactiveProjectsPage.status !== 200 || inactiveProjectDetail.status !== 200) {
+      throw new Error("Inactive company project pages should remain readable");
+    }
+    const inactiveUpdate = await request(`/api/projects/${createdProjectId}/status`, { status: "completed", expectedStatus: "paused" }, "PATCH");
+    if (inactiveUpdate.status !== 403) throw new Error(`Inactive company project update should be blocked, got ${inactiveUpdate.status}`);
+    const inactiveMemberUpdate = await request(`/api/companies/${companyAId}/members/${adminId}`, { visibleInActivityAssignments: true }, "PATCH");
+    if (inactiveMemberUpdate.status !== 403) throw new Error(`Inactive company member update should be blocked, got ${inactiveMemberUpdate.status}`);
+    const inactiveCompanyEdit = await request(`/api/companies/${companyAId}`, { name: "Nombre no permitido", isActive: true }, "PATCH");
+    if (inactiveCompanyEdit.status !== 403) throw new Error(`Inactive company edit should be blocked, got ${inactiveCompanyEdit.status}`);
     const inactiveSwitch = await request("/api/companies/active", { companyId: companyAId });
     if (inactiveSwitch.status !== 403) throw new Error(`Inactive company should not be selectable, got ${inactiveSwitch.status}`);
-    const reactivatedCompany = await request(`/api/companies/${companyAId}`, { name: "Empresa A de prueba", isActive: true }, "PATCH");
+    const reactivatedCompany = await request(`/api/companies/${companyAId}`, { isActive: true }, "PATCH");
     if (reactivatedCompany.status !== 200) throw new Error(`Company reactivation failed: ${reactivatedCompany.status}`);
 
     const childPassword = randomBytes(24).toString("hex");
@@ -255,13 +304,16 @@ async function main() {
       throw new Error("Sensitive actions were not recorded in the security audit");
     }
 
-    console.log("Authentication, TOTP, users, company isolation, projects and audits verified with disposable local data.");
+    console.log("Authentication, TOTP, users, company isolation, projects, concurrent document uploads and audits verified with disposable local data.");
   } finally {
     for (const id of projectIds) {
       await db.delete(projectAuditEvent).where(eq(projectAuditEvent.projectId, id));
+      await db.delete(projectDocument).where(eq(projectDocument.projectId, id));
       await db.delete(project).where(eq(project.id, id));
     }
     for (const id of companyIds) {
+      await db.delete(auditEvent).where(eq(auditEvent.companyId, id));
+      await db.delete(companyTeamMember).where(eq(companyTeamMember.companyId, id));
       await db.delete(companyMember).where(eq(companyMember.companyId, id));
       await db.delete(company).where(eq(company.id, id));
     }

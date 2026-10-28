@@ -8,6 +8,7 @@ import { auditEvent } from "@/modules/audit/schema";
 import { updatedDetail } from "@/modules/audit/details";
 
 const companyInput = z.object({ name: z.string().trim().min(1).max(120), isActive: z.boolean(), memberIds: z.array(z.string().min(1)).max(500).default([]) });
+const reactivateInput = z.object({ isActive: z.literal(true) }).strict();
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -15,14 +16,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (session.user.role !== "admin" || !session.user.twoFactorEnabled) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
   }
-  const parsed = companyInput.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Escribe un nombre de empresa válido" }, { status: 400 });
+  const payload = await request.json().catch(() => null);
   const { id } = await params;
   const membership = await db.select({ companyId: companyMember.companyId }).from(companyMember)
     .where(and(eq(companyMember.companyId, id), eq(companyMember.userId, session.user.id))).limit(1);
   if (membership.length === 0) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
   const [previous] = await db.select().from(company).where(eq(company.id, id));
   if (!previous) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
+  if (!previous.isActive) {
+    if (!reactivateInput.safeParse(payload).success) {
+      return Response.json({ error: "La empresa está inactiva. Solo puedes reactivarla." }, { status: 403 });
+    }
+    const [reactivated] = await db.transaction(async (tx) => {
+      const [item] = await tx.update(company).set({ isActive: true, updatedAt: new Date() })
+        .where(and(eq(company.id, id), eq(company.isActive, false))).returning();
+      if (!item) return [];
+      await tx.insert(auditEvent).values({ companyId: id, actorUserId: session.user.id, entityType: "company", entityId: id, entityName: item.name, action: "company.updated", changeDetail: updatedDetail("la empresa", [{ label: "Estado", before: false, after: true }]) });
+      return [item];
+    });
+    if (!reactivated) return Response.json({ error: "La empresa ya cambió de estado. Actualiza la página." }, { status: 409 });
+    return Response.json({ company: reactivated });
+  }
+  const parsed = companyInput.safeParse(payload);
+  if (!parsed.success) return Response.json({ error: "Escribe un nombre de empresa válido" }, { status: 400 });
   const memberIds = [...new Set([session.user.id, ...parsed.data.memberIds])];
   const existingUsers = await db.select({ id: user.id, name: user.name, email: user.email, role: user.role }).from(user).where(inArray(user.id, memberIds));
   if (existingUsers.length !== memberIds.length) return Response.json({ error: "Uno o más usuarios seleccionados no existen" }, { status: 400 });
@@ -31,7 +47,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const previousVisibility = new Map(previousMembers.map((member) => [member.userId, member.visibleInActivityAssignments]));
   const [updated] = await db.transaction(async (tx) => {
     const [result] = await tx.update(company).set({ name: parsed.data.name, isActive: parsed.data.isActive, updatedAt: new Date() })
-      .where(eq(company.id, id)).returning();
+      .where(and(eq(company.id, id), eq(company.isActive, true))).returning();
     if (!result) return [];
     await tx.delete(companyMember).where(eq(companyMember.companyId, id));
     await tx.insert(companyMember).values(memberIds.map((userId) => ({ companyId: id, userId, visibleInActivityAssignments: previousVisibility.get(userId) ?? false })));
@@ -41,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
     return [result];
   });
-  if (!updated) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
+  if (!updated) return Response.json({ error: "La empresa ya cambió de estado. Actualiza la página." }, { status: 409 });
   const changes = [
     { label: "Nombre", before: previous.name, after: updated.name },
     { label: "Estado", before: previous.isActive, after: updated.isActive },

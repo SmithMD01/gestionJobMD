@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { requireAdmin } from "@/lib/require-session";
@@ -10,6 +10,7 @@ import { ProjectForm } from "../../project-form";
 export default async function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
   const company = await activeCompanyForPage(session.user.id);
+  if (!company.isActive) redirect("/projects");
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const [item] = await db.select().from(project).where(and(eq(project.id, id), eq(project.companyId, company.id)));

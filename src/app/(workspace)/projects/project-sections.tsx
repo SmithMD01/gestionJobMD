@@ -27,7 +27,7 @@ function ComingSoon({ children }: { children: string }) {
   return <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5"><p className="text-sm leading-6 text-muted">{children}</p></div>;
 }
 
-export function ProjectSections({ projectId, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
+export function ProjectSections({ projectId, readOnly = false, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; readOnly?: boolean; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
   const [active, setActive] = useState<(typeof sections)[number]["id"]>("information");
   const [projectModules, setProjectModules] = useState(modules);
 
@@ -68,16 +68,16 @@ export function ProjectSections({ projectId, contacts, activities, developmentSt
           </div>
           <ProjectFollowUp activities={activities} scheduleItems={scheduleItems} stages={developmentStages} modules={projectModules} projectStatus={projectStatus} startDate={projectStartDate} endDate={projectEndDate} />
         </>}
-        {section.id === "activities" && <ProjectActivities projectId={projectId} initialActivities={activities} stages={developmentStages} teamMembers={teamMembers} />}
-        {section.id === "development" && <ProjectDevelopment projectId={projectId} activities={activities} stages={developmentStages} teamMembers={teamMembers} modules={projectModules} />}
-        {section.id === "configuration" && <ProjectConfiguration projectId={projectId} contacts={contacts} modules={projectModules} activities={activities} stages={developmentStages} onModulesChange={setProjectModules} />}
-        {section.id === "documentation" && <ProjectDocumentation projectId={projectId} initialDocuments={documents} />}
+        {section.id === "activities" && <ProjectActivities projectId={projectId} readOnly={readOnly} initialActivities={activities} stages={developmentStages} teamMembers={teamMembers} />}
+        {section.id === "development" && <ProjectDevelopment projectId={projectId} readOnly={readOnly} activities={activities} stages={developmentStages} teamMembers={teamMembers} modules={projectModules} />}
+        {section.id === "configuration" && <ProjectConfiguration projectId={projectId} readOnly={readOnly} contacts={contacts} modules={projectModules} activities={activities} stages={developmentStages} onModulesChange={setProjectModules} />}
+        {section.id === "documentation" && <ProjectDocumentation projectId={projectId} readOnly={readOnly} initialDocuments={documents} />}
         {section.id === "qa" && <>
           <h2 className="text-base font-semibold">Pruebas QA</h2>
           <p className="mt-2 text-sm text-muted">Casos de prueba, resultados y evidencias vinculados al proyecto.</p>
           <div className="mt-4"><ComingSoon>La estructura de esta sección se definirá al revisar tu archivo de QA.</ComingSoon></div>
         </>}
-        {section.id === "schedule" && <ProjectSchedule projectId={projectId} initialSchedule={schedule} initialItems={scheduleItems} />}
+        {section.id === "schedule" && <ProjectSchedule projectId={projectId} readOnly={readOnly} initialSchedule={schedule} initialItems={scheduleItems} />}
         {section.id === "benchwork" && <>
           <h2 className="text-base font-semibold">Benchwork</h2>
           <p className="mt-2 text-sm text-muted">Espacio de apoyo para preparar documentación con IA a partir de la información del proyecto.</p>

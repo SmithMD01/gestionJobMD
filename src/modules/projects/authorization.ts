@@ -11,5 +11,8 @@ export async function authorizeProjectRequest(request: Request) {
   const selectedId = (await cookies()).get(ACTIVE_COMPANY_COOKIE)?.value;
   const company = await activeCompanyForUser(session.user.id, selectedId);
   if (!company) return { response: Response.json({ error: "Selecciona una empresa" }, { status: 409 }) };
+  if (!company.isActive && request.method !== "GET" && request.method !== "HEAD") {
+    return { response: Response.json({ error: "La empresa está inactiva. Solo puedes consultar su información." }, { status: 403 }) };
+  }
   return { session, company };
 }

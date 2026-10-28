@@ -1,10 +1,17 @@
 import { z } from "zod";
 
+const projectStatus = z.enum(["planned", "active", "paused", "completed", "cancelled"]);
+
+export const projectStatusInput = z.object({
+  status: projectStatus,
+  expectedStatus: projectStatus,
+}).strict();
+
 export const projectInput = z.object({
   name: z.string().trim().min(1).max(120),
   objective: z.string().trim().min(1).max(500),
   description: z.string().trim().max(5000),
-  status: z.enum(["planned", "active", "paused", "completed", "cancelled"]),
+  status: projectStatus,
   startDate: z.iso.date().nullable(),
   endDate: z.iso.date().nullable(),
 }).refine((value) => !value.startDate || !value.endDate || value.endDate >= value.startDate, {

@@ -9,7 +9,7 @@ import { company, companyMember } from "./schema";
 export const ACTIVE_COMPANY_COOKIE = "active_company";
 
 export async function companiesForUser(userId: string) {
-  return db.select({ id: company.id, name: company.name })
+  return db.select({ id: company.id, name: company.name, isActive: company.isActive })
     .from(companyMember)
     .innerJoin(company, eq(companyMember.companyId, company.id))
     .where(and(eq(companyMember.userId, userId), eq(company.isActive, true)))
@@ -42,10 +42,10 @@ export async function membersForCompanies(companyIds: string[]) {
 export async function activeCompanyForUser(userId: string, selectedId?: string) {
   if (selectedId) {
     if (!z.uuid().safeParse(selectedId).success) return null;
-    const [selected] = await db.select({ id: company.id, name: company.name })
+    const [selected] = await db.select({ id: company.id, name: company.name, isActive: company.isActive })
       .from(companyMember)
       .innerJoin(company, eq(companyMember.companyId, company.id))
-      .where(and(eq(companyMember.userId, userId), eq(company.id, selectedId), eq(company.isActive, true)));
+      .where(and(eq(companyMember.userId, userId), eq(company.id, selectedId)));
     return selected ?? null;
   }
   const [first] = await companiesForUser(userId);

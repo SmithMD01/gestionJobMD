@@ -26,29 +26,35 @@ export async function PATCH(request: Request, context: Context) {
   if (parsed.data.moduleId && parsed.data.type !== "development") return Response.json({ error: "Solo las actividades de desarrollo pueden relacionarse con un módulo" }, { status: 400 });
   if (parsed.data.moduleId && !await moduleInProject(parsed.data.moduleId, result.id)) return Response.json({ error: "El módulo no pertenece a este proyecto" }, { status: 400 });
   const activityValues = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key !== "responsibleIds")) as Omit<typeof parsed.data, "responsibleIds">;
-  const [previous] = await db.select().from(activity).where(and(eq(activity.id, result.activityId), eq(activity.projectId, result.id)));
-  if (!previous) return Response.json({ error: "Actividad no encontrada" }, { status: 404 });
-  const changes = [
-    { label: "Título", before: previous.title, after: activityValues.title },
-    { label: "Etapa", before: previous.developmentStageId, after: activityValues.developmentStageId },
-    { label: "Módulo", before: previous.moduleId, after: activityValues.moduleId },
-    { label: "Tipo", before: previous.type, after: activityValues.type },
-    { label: "Estado", before: previous.status, after: activityValues.status },
-    { label: "Prioridad", before: previous.priority, after: activityValues.priority },
-    { label: "Fecha de actividad", before: previous.activityDate, after: activityValues.activityDate },
-    { label: "Fecha límite", before: previous.dueDate, after: activityValues.dueDate },
-    { label: "Horas", before: previous.hours, after: activityValues.hours },
-    { label: "Observaciones", before: previous.observations, after: activityValues.observations },
-    { label: "Checklist", before: previous.checklist, after: activityValues.checklist },
-    { label: "Origen", before: previous.origin, after: activityValues.origin },
-  ].filter(({ before, after }) => before !== after);
+  const projectId = result.id;
+  const activityId = result.activityId;
   const prefix = activityValues.type === "development" ? "DEV" : "ACT";
-  const [updated] = await db.update(activity).set({ ...activityValues, code: `${prefix}-${result.activityId.slice(0, 8).toUpperCase()}`, updatedAt: new Date() }).where(and(eq(activity.id, result.activityId), eq(activity.projectId, result.id))).returning();
+  const updated = await db.transaction(async (tx) => {
+    const [previous] = await tx.select().from(activity).where(and(eq(activity.id, activityId), eq(activity.projectId, projectId)));
+    if (!previous) return null;
+    const changes = [
+      { label: "Título", before: previous.title, after: activityValues.title },
+      { label: "Etapa", before: previous.developmentStageId, after: activityValues.developmentStageId },
+      { label: "Módulo", before: previous.moduleId, after: activityValues.moduleId },
+      { label: "Tipo", before: previous.type, after: activityValues.type },
+      { label: "Estado", before: previous.status, after: activityValues.status },
+      { label: "Prioridad", before: previous.priority, after: activityValues.priority },
+      { label: "Fecha de actividad", before: previous.activityDate, after: activityValues.activityDate },
+      { label: "Fecha límite", before: previous.dueDate, after: activityValues.dueDate },
+      { label: "Horas", before: previous.hours, after: activityValues.hours },
+      { label: "Observaciones", before: previous.observations, after: activityValues.observations },
+      { label: "Checklist", before: previous.checklist, after: activityValues.checklist },
+      { label: "Origen", before: previous.origin, after: activityValues.origin },
+    ].filter(({ before, after }) => before !== after);
+    const [item] = await tx.update(activity).set({ ...activityValues, code: `${prefix}-${activityId.slice(0, 8).toUpperCase()}`, updatedAt: new Date() }).where(and(eq(activity.id, activityId), eq(activity.projectId, projectId))).returning();
+    if (!item) return null;
+    await tx.delete(activityResponsible).where(eq(activityResponsible.activityId, activityId));
+    if (responsibleIds.length) await tx.insert(activityResponsible).values(responsibleIds.map((teamMemberId) => ({ activityId, teamMemberId })));
+    await tx.insert(projectAuditEvent).values({ projectId, actorUserId: result.auth.session!.user.id, action: "activity.updated" });
+    await tx.insert(auditEvent).values({ companyId: result.auth.company!.id, actorUserId: result.auth.session!.user.id, entityType: "activity", entityId: item.id, entityName: item.title, action: "activity.updated", changeDetail: updatedDetail("la actividad", changes) });
+    return item;
+  });
   if (!updated) return Response.json({ error: "Actividad no encontrada" }, { status: 404 });
-  await db.delete(activityResponsible).where(eq(activityResponsible.activityId, result.activityId));
-  if (responsibleIds.length) await db.insert(activityResponsible).values(responsibleIds.map((teamMemberId) => ({ activityId: result.activityId!, teamMemberId })));
-  await db.insert(projectAuditEvent).values({ projectId: result.id, actorUserId: result.auth.session!.user.id, action: "activity.updated" });
-  await db.insert(auditEvent).values({ companyId: result.auth.company!.id, actorUserId: result.auth.session!.user.id, entityType: "activity", entityId: updated.id, entityName: updated.title, action: "activity.updated", changeDetail: updatedDetail("la actividad", changes) });
   return Response.json({ activity: { ...updated, responsibleIds, responsibleNames: responsibleMembers.map((member) => member.name) } });
 }
 export async function DELETE(request: Request, context: Context) {

@@ -14,12 +14,7 @@ const statusDot: Record<ProjectStatus, string> = {
 
 type ProjectData = {
   id: string;
-  name: string;
-  objective: string;
-  description: string;
   status: ProjectStatus;
-  startDate: string | null;
-  endDate: string | null;
 };
 
 export function ProjectStatusSelect({ project }: { project: ProjectData }) {
@@ -33,13 +28,17 @@ export function ProjectStatusSelect({ project }: { project: ProjectData }) {
     setPending(true);
     setError("");
     try {
-      const response = await fetch(`/api/projects/${project.id}`, {
+      const response = await fetch(`/api/projects/${project.id}/status`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...project, status: nextStatus }),
+        body: JSON.stringify({ status: nextStatus, expectedStatus: status }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok) {
+        if (response.status === 409 && typeof result?.currentStatus === "string" && result.currentStatus in projectStatusLabel) {
+          setStatus(result.currentStatus as ProjectStatus);
+          router.refresh();
+        }
         setError(result?.error || "No se pudo actualizar el estado.");
         return;
       }

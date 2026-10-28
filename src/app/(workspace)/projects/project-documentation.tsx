@@ -51,6 +51,7 @@ function DocumentUploadForm({ projectId, initialGroupId, initialTypeId, initialT
   const [typeId, setTypeId] = useState(initialTypeId ?? documentationGroups.find((group) => group.id === firstGroup)?.types[0][0] ?? "");
   const [pending, setPending] = useState(false);
   const submitLock = useRef(false);
+  const uploadKey = useRef<string | null>(null);
   const [error, setError] = useState("");
 
   function changeGroup(nextGroupId: string) {
@@ -68,10 +69,13 @@ function DocumentUploadForm({ projectId, initialGroupId, initialTypeId, initialT
     const form = new FormData(event.currentTarget);
     form.set("groupId", groupId);
     form.set("typeId", typeId);
+    uploadKey.current ??= crypto.randomUUID();
+    form.set("uploadKey", uploadKey.current);
     try {
       const response = await fetch(`/api/projects/${projectId}/documents`, { method: "POST", body: form });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.document) { setError(result?.error || "No se pudo adjuntar el documento."); return; }
+      uploadKey.current = null;
       onSaved(result.document as ProjectDocument);
     } catch { setError("No se pudo conectar. Vuelve a intentarlo."); } finally { submitLock.current = false; setPending(false); onPendingChange(false); }
   }
@@ -120,7 +124,7 @@ function DocumentSettingsForm({ projectId, document, onSaved, onPendingChange }:
   </form>;
 }
 
-export function ProjectDocumentation({ projectId, initialDocuments }: { projectId: string; initialDocuments: ProjectDocument[] }) {
+export function ProjectDocumentation({ projectId, readOnly = false, initialDocuments }: { projectId: string; readOnly?: boolean; initialDocuments: ProjectDocument[] }) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [upload, setUpload] = useState<{ groupId?: string; typeId?: string; title?: string } | null>(null);
   const [settings, setSettings] = useState<ProjectDocument | null>(null);
@@ -152,7 +156,7 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
     try { const response = await fetch(`/api/projects/${projectId}/documents/${deleting.id}`, { method: "DELETE" }); const result = await response.json().catch(() => null); if (!response.ok) { setError(result?.error || "No se pudo eliminar el documento."); return; } setDocuments((current) => current.filter((item) => item.id !== deleting.id)); setDeleting(null); } catch { setError("No se pudo conectar. Vuelve a intentarlo."); } finally { actionLock.current = false; setPending(false); }
   }
   return <div className="mt-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Documentación</h2><p className="mt-1 text-xs text-subtle">Organiza documentos funcionales, técnicos y operativos por tipo y versión.</p></div><Button type="button" variant="primary" onClick={() => setUpload({})}>Adjuntar documento</Button></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Documentación</h2><p className="mt-1 text-xs text-subtle">Organiza documentos funcionales, técnicos y operativos por tipo y versión.</p></div>{!readOnly && <Button type="button" variant="primary" onClick={() => setUpload({})}>Adjuntar documento</Button>}</div>
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     <div className="mt-5 space-y-3">
       {documentationGroups.map((group) => {
@@ -176,9 +180,9 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
                     variant={item.isFinal ? "warning" : "ghost"}
                     size="icon"
                     onClick={() => void toggleFinal(item)}
-                    disabled={pending || item.status !== "approved"}
+                    disabled={readOnly || pending || item.status !== "approved"}
                     aria-label={item.isFinal ? `Quitar versión definitiva de v${item.version}` : `Marcar v${item.version} como definitiva`}
-                    title={item.status !== "approved" ? "Aprueba la versión para marcarla como definitiva" : item.isFinal ? "Versión definitiva" : "Marcar como definitiva"}
+                    title={readOnly ? "Empresa inactiva: solo lectura" : item.status !== "approved" ? "Aprueba la versión para marcarla como definitiva" : item.isFinal ? "Versión definitiva" : "Marcar como definitiva"}
                     className={`!size-7 !min-w-7 rounded-md ${item.status !== "approved" ? "text-muted/50" : ""}`}
                   ><StarIcon active={item.isFinal} /></Button>
                 },
@@ -195,13 +199,13 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
                 { key: "status", label: "Estado", render: (item) => documentationStatusLabels[item.status] },
                 { key: "size", label: "Tamaño", render: (item) => formatSize(item.fileSize) },
                 { key: "date", label: "Actualizado", render: (item) => formatDate(item.updatedAt) },
-                { key: "actions", label: "Acciones", render: (item) => <RowActions label={`${typeLabel} v${item.version}`} actions={[{ label: "Editar estado", onSelect: () => setSettings(item) }, { label: "Nueva versión", onSelect: () => setUpload({ groupId: group.id, typeId, title: item.title }) }, { label: "Eliminar", tone: "danger", onSelect: () => { setError(""); setDeleting(item); } }]} /> }
+                { key: "actions", label: "Acciones", render: (item) => readOnly ? <span className="text-muted">—</span> : <RowActions label={`${typeLabel} v${item.version}`} actions={[{ label: "Editar estado", onSelect: () => setSettings(item) }, { label: "Nueva versión", onSelect: () => setUpload({ groupId: group.id, typeId, title: item.title }) }, { label: "Eliminar", tone: "danger", onSelect: () => { setError(""); setDeleting(item); } }]} /> }
               ];
 
               return <section key={typeId} aria-labelledby={`document-type-${group.id}-${typeId}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div><h3 id={`document-type-${group.id}-${typeId}`} className="text-sm font-semibold text-ink">{typeLabel}</h3>{versions.length === 0 && <p className="mt-1 text-xs text-muted">Aún no hay versiones adjuntas.</p>}</div>
-                  {versions.length > 0 && <Button type="button" variant="secondary" size="compact" onClick={() => setUpload({ groupId: group.id, typeId, title: versions[0]?.title })}>Nueva versión</Button>}
+                  {!readOnly && versions.length > 0 && <Button type="button" variant="secondary" size="compact" onClick={() => setUpload({ groupId: group.id, typeId, title: versions[0]?.title })}>Nueva versión</Button>}
                 </div>
                 {versions.length > 0 && <DataTable className="!text-xs" containerClassName="!mt-2" pagination={false} rows={versions} rowKey={(item) => item.id} emptyMessage="Sin versiones" columns={columns} />}
               </section>;
@@ -210,8 +214,8 @@ export function ProjectDocumentation({ projectId, initialDocuments }: { projectI
         </details>;
       })}
     </div>
-    <CreateDialog title={upload?.typeId ? "Nueva versión documental" : "Adjuntar documento"} triggerLabel="Adjuntar documento" showTrigger={false} open={upload !== null} onOpenChange={(open) => { if (!open && !pending) setUpload(null); }} busy={pending}>{upload && <DocumentUploadForm key={`${upload.groupId ?? "new"}:${upload.typeId ?? "new"}`} projectId={projectId} initialGroupId={upload.groupId} initialTypeId={upload.typeId} initialTitle={upload.title} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>
-    <CreateDialog title="Editar documento" triggerLabel="Editar documento" showTrigger={false} open={settings !== null} onOpenChange={(open) => { if (!open && !pending) setSettings(null); }} busy={pending}>{settings && <DocumentSettingsForm key={settings.id} projectId={projectId} document={settings} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>
-    <CreateDialog title="Eliminar documento" triggerLabel="Eliminar documento" showTrigger={false} open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending}>{deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title} v{deleting.version}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancelar</Button><Button type="button" variant="danger" loading={pending} onClick={() => void remove()}>{pending ? "Eliminando…" : "Eliminar documento"}</Button></div></div>}</CreateDialog>
+    {!readOnly && <CreateDialog title={upload?.typeId ? "Nueva versión documental" : "Adjuntar documento"} triggerLabel="Adjuntar documento" showTrigger={false} open={upload !== null} onOpenChange={(open) => { if (!open && !pending) setUpload(null); }} busy={pending}>{upload && <DocumentUploadForm key={`${upload.groupId ?? "new"}:${upload.typeId ?? "new"}`} projectId={projectId} initialGroupId={upload.groupId} initialTypeId={upload.typeId} initialTitle={upload.title} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>}
+    {!readOnly && <CreateDialog title="Editar documento" triggerLabel="Editar documento" showTrigger={false} open={settings !== null} onOpenChange={(open) => { if (!open && !pending) setSettings(null); }} busy={pending}>{settings && <DocumentSettingsForm key={settings.id} projectId={projectId} document={settings} onPendingChange={setPending} onSaved={saved} />}</CreateDialog>}
+    {!readOnly && <CreateDialog title="Eliminar documento" triggerLabel="Eliminar documento" showTrigger={false} open={deleting !== null} onOpenChange={(open) => { if (!open && !pending) setDeleting(null); }} busy={pending}>{deleting && <div className="space-y-4"><p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar <strong className="text-ink">{deleting.title} v{deleting.version}</strong>? Esta acción no se puede deshacer.</p>{error && <p role="alert" className="text-sm text-danger">{error}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setDeleting(null)} disabled={pending}>Cancelar</Button><Button type="button" variant="danger" loading={pending} onClick={() => void remove()}>{pending ? "Eliminando…" : "Eliminar documento"}</Button></div></div>}</CreateDialog>}
   </div>;
 }

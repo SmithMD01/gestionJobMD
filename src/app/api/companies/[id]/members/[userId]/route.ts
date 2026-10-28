@@ -4,7 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/client";
 import { user } from "@/db/auth-schema";
-import { companyMember, companyTeamMember } from "@/modules/companies/schema";
+import { company, companyMember, companyTeamMember } from "@/modules/companies/schema";
 import { auditEvent } from "@/modules/audit/schema";
 import { updatedDetail } from "@/modules/audit/details";
 
@@ -22,6 +22,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const actorMembership = await db.select({ companyId: companyMember.companyId }).from(companyMember)
     .where(and(eq(companyMember.companyId, id), eq(companyMember.userId, session.user.id))).limit(1);
   if (!actorMembership.length) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
+  const [targetCompany] = await db.select({ isActive: company.isActive }).from(company).where(eq(company.id, id));
+  if (!targetCompany) return Response.json({ error: "Empresa no encontrada" }, { status: 404 });
+  if (!targetCompany.isActive) return Response.json({ error: "La empresa está inactiva. No puedes modificar sus miembros." }, { status: 403 });
   const [member] = await db.select({ userId: companyMember.userId, name: user.name, email: user.email, role: user.role, visibleInActivityAssignments: companyMember.visibleInActivityAssignments })
     .from(companyMember)
     .innerJoin(user, eq(companyMember.userId, user.id))

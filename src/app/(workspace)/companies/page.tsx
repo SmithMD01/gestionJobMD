@@ -23,7 +23,7 @@ export default async function CompaniesPage() {
     memberNames: (membersByCompany.get(item.id) ?? []).map((member) => member.name),
   }));
   const selectedId = (await cookies()).get(ACTIVE_COMPANY_COOKIE)?.value;
-  const activeId = selectedId ? selectableCompanies.find((item) => item.id === selectedId)?.id : selectableCompanies[0]?.id;
+  const activeId = selectedId ? companies.find((item) => item.id === selectedId)?.id : selectableCompanies[0]?.id;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-6 py-8 sm:px-8">

@@ -12,6 +12,7 @@ import { ProjectSections } from "../project-sections";
 import type { ProjectScheduleItem as ProjectScheduleItemType } from "../project-schedule";
 import { ProjectStatusSelect } from "../project-status-select";
 import { ProjectEditDialogButton } from "../project-edit-dialog-button";
+import { projectStatusLabel } from "@/modules/projects/constants";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
@@ -48,12 +49,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <h1 className="mt-1 break-words text-2xl font-semibold text-ink sm:text-3xl">{item.name}</h1>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          <ProjectStatusSelect project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} />
-          <ProjectEditDialogButton project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} />
+          {company.isActive ? <><ProjectStatusSelect project={{ id: item.id, status: item.status }} />
+          <ProjectEditDialogButton project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} /></> : <span className="rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-muted">{projectStatusLabel[item.status]}</span>}
         </div>
       </header>
 
-      <ProjectSections projectId={item.id} contacts={contacts} activities={activitiesWithResponsibles} developmentStages={developmentStages} teamMembers={teamMembers} modules={modules} documents={documents} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
+      {!company.isActive && <p role="status" className="mt-5 rounded-lg border border-line bg-canvas px-4 py-3 text-sm text-muted">Esta empresa está inactiva. El proyecto está disponible solo para consulta.</p>}
+
+      <ProjectSections projectId={item.id} readOnly={!company.isActive} contacts={contacts} activities={activitiesWithResponsibles} developmentStages={developmentStages} teamMembers={teamMembers} modules={modules} documents={documents} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
 
     </main>
   );

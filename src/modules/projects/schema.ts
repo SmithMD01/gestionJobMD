@@ -65,6 +65,7 @@ export const projectDocument = pgTable("project_document", {
   typeId: text("type_id").notNull(),
   title: text("title").notNull(),
   version: integer("version").notNull().default(1),
+  uploadKey: uuid("upload_key"),
   status: documentationStatus("status").notNull().default("draft"),
   isFinal: boolean("is_final").notNull().default(false),
   fileName: text("file_name").notNull(),
@@ -75,7 +76,11 @@ export const projectDocument = pgTable("project_document", {
   createdBy: text("created_by").notNull().references(() => user.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex("project_document_final_type_uidx").on(table.projectId, table.groupId, table.typeId).where(sql`${table.isFinal} = true`)]);
+}, (table) => [
+  uniqueIndex("project_document_final_type_uidx").on(table.projectId, table.groupId, table.typeId).where(sql`${table.isFinal} = true`),
+  uniqueIndex("project_document_version_uidx").on(table.projectId, table.groupId, table.typeId, table.version),
+  uniqueIndex("project_document_upload_key_uidx").on(table.projectId, table.uploadKey),
+]);
 
 export const activity = pgTable("activity", {
   id: uuid("id").defaultRandom().primaryKey(),

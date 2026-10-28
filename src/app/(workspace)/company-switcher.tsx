@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 
 type CompanyOption = { id: string; name: string };
 
-export function CompanySwitcher({ companies, activeId }: { companies: CompanyOption[]; activeId?: string }) {
+export function CompanySwitcher({ companies, activeId, selectedCompanyName, selectedCompanyActive }: { companies: CompanyOption[]; activeId?: string; selectedCompanyName?: string; selectedCompanyActive?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const activeCompany = companies.find((company) => company.id === activeId);
+  const activeLabel = selectedCompanyName ? `${selectedCompanyName}${selectedCompanyActive === false ? " (inactiva)" : ""}` : activeCompany?.name ?? "ninguna";
 
   async function change(companyId: string) {
     if (companyId === activeId) { setOpen(false); return; }
@@ -46,14 +47,14 @@ export function CompanySwitcher({ companies, activeId }: { companies: CompanyOpt
         variant="secondary"
         size="icon"
         onClick={() => setOpen((value) => !value)}
-        aria-label={`Empresa activa: ${activeCompany?.name ?? "ninguna"}. Cambiar empresa`}
+        aria-label={`Empresa seleccionada: ${activeLabel}. Cambiar empresa`}
         aria-expanded={open}
         aria-controls="company-menu"
-        title={activeCompany?.name ?? "Seleccionar empresa"}
+        title={activeLabel === "ninguna" ? "Seleccionar empresa" : activeLabel}
         className="rounded-xl text-muted"
       ><UiIcon name="companies" /></Button>
       {open && <div id="company-menu" className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-line bg-surface p-2 shadow-lg">
-        <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-subtle">Empresa activa</p>
+        <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-subtle">{selectedCompanyActive === false ? "Empresa inactiva · solo lectura" : "Empresa activa"}</p>
         {companies.length === 0 ? <p className="px-2 py-2 text-sm text-muted">Aún no hay empresas.</p> : companies.map((company) => (
           <Button key={company.id} type="button" variant="ghost" size="compact" disabled={pending} onClick={() => void change(company.id)} className={`w-full justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm ${company.id === activeId ? "font-semibold text-ink" : "text-muted"}`}>
             <span className="truncate">{company.name}</span>

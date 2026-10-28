@@ -75,7 +75,7 @@ function ContactForm({ projectId, initial, onSaved, onPendingChange }: {
   </form>;
 }
 
-export function ProjectContacts({ projectId, initialContacts }: { projectId: string; initialContacts: ProjectContact[] }) {
+export function ProjectContacts({ projectId, readOnly = false, initialContacts }: { projectId: string; readOnly?: boolean; initialContacts: ProjectContact[] }) {
   const router = useRouter();
   const [contacts, setContacts] = useState(initialContacts);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -147,7 +147,7 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
       <div className="mt-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div><p className="text-xs text-subtle">Personas relacionadas con este proyecto.</p></div>
-      <Button type="button" variant="primary" size="compact" onClick={openCreate} className="w-full !px-3 !text-xs sm:w-auto">Agregar contacto</Button>
+      {!readOnly && <Button type="button" variant="primary" size="compact" onClick={openCreate} className="w-full !px-3 !text-xs sm:w-auto">Agregar contacto</Button>}
     </div>
     {copyMessage && <p role="status" aria-live="polite" className="mt-3 text-xs text-muted">{copyMessage}</p>}
     {contacts.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-line bg-canvas px-4 py-5 text-sm text-muted">Todavía no hay contactos registrados.</p> : <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -169,21 +169,21 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
               {contact.phone && <div className="flex min-w-0 items-center gap-1.5"><a href={`tel:${contact.phone}`} onClick={(event) => event.stopPropagation()} className="min-w-0 flex-1 truncate text-xs text-muted hover:text-ink">{contact.phone}</a><Button type="button" variant="secondary" size="icon" onClick={(event) => { event.stopPropagation(); void copyValue("Teléfono", contact.phone!); }} aria-label={`Copiar teléfono de ${contact.name}`} title="Copiar teléfono"><CopyIcon /></Button></div>}
             </div> : <p className="w-full px-3 text-center text-xs text-subtle">Sin correo ni teléfono</p>}
           </div>
-          <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
+          {!readOnly && <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
             <Button type="button" variant="secondary" size="icon" onClick={(event) => { event.stopPropagation(); openEdit(contact); }} aria-label={`Editar contacto ${contact.name}`} title="Editar contacto"><EditIcon /></Button>
             <Button type="button" variant="danger" size="icon" onClick={(event) => { event.stopPropagation(); setDeleteError(""); setDeleting(contact); }} aria-label={`Eliminar contacto ${contact.name}`} title="Eliminar contacto"><DeleteIcon /></Button>
-          </div>
+          </div>}
         </li>;
       })}
     </ul>}
       </div>
     </details>
 
-    <CreateDialog title={editing ? "Editar contacto" : "Agregar contacto"} triggerLabel="Agregar contacto" open={editorOpen} onOpenChange={(open) => { if (!open && !formPending) { setEditorOpen(false); setEditing(null); } }} busy={formPending} showTrigger={false}>
+    {!readOnly && <CreateDialog title={editing ? "Editar contacto" : "Agregar contacto"} triggerLabel="Agregar contacto" open={editorOpen} onOpenChange={(open) => { if (!open && !formPending) { setEditorOpen(false); setEditing(null); } }} busy={formPending} showTrigger={false}>
       {editorOpen && <ContactForm key={editing?.id ?? "new-contact"} projectId={projectId} initial={editing ?? undefined} onSaved={saveContact} onPendingChange={setFormPending} />}
-    </CreateDialog>
+    </CreateDialog>}
 
-    <CreateDialog title="Eliminar contacto" triggerLabel="Eliminar contacto" open={deleting !== null} onOpenChange={(open) => { if (!open && !deletePending) { setDeleting(null); setDeleteError(""); } }} busy={deletePending} showTrigger={false}>
+    {!readOnly && <CreateDialog title="Eliminar contacto" triggerLabel="Eliminar contacto" open={deleting !== null} onOpenChange={(open) => { if (!open && !deletePending) { setDeleting(null); setDeleteError(""); } }} busy={deletePending} showTrigger={false}>
       {deleting && <div className="space-y-4">
         <p className="text-sm leading-6 text-muted">¿Seguro que deseas eliminar a <strong className="text-ink">{deleting.name}</strong> de los contactos de este proyecto? Esta acción no se puede deshacer.</p>
         {deleteError && <p role="alert" className="text-sm text-danger">{deleteError}</p>}
@@ -192,6 +192,6 @@ export function ProjectContacts({ projectId, initialContacts }: { projectId: str
           <Button type="button" variant="danger" loading={deletePending} onClick={() => void deleteContact()}>{deletePending ? "Eliminando…" : "Eliminar contacto"}</Button>
         </div>
       </div>}
-    </CreateDialog>
+    </CreateDialog>}
   </>;
 }

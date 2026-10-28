@@ -3,15 +3,10 @@
 import { statusLabels, StatusBadge, type ProjectActivity } from "./project-activities";
 import type { ProjectScheduleItem } from "./project-schedule";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
+import { ACTIVITY_UPCOMING_DAYS, activityAttention, currentDateKey, type ActivityAttention } from "@/modules/projects/activity-attention";
 
 type Stage = { id: string; name: string; color: string };
 type ProjectModule = { id: string; parentId: string | null; name: string };
-
-function dateKey(value: Date) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
-}
 
 function formatDate(value: string | null) {
   return value ? new Date(`${value}T00:00:00`).toLocaleDateString("es-PE", { day: "2-digit", month: "short" }) : "Sin fecha";
@@ -19,12 +14,6 @@ function formatDate(value: string | null) {
 
 function daysBetween(from: string, to: string) {
   return Math.round((new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 86_400_000);
-}
-
-function addDays(value: string, days: number) {
-  const result = new Date(`${value}T00:00:00Z`);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result.toISOString().slice(0, 10);
 }
 
 function stageColor(color: string) {
@@ -51,6 +40,9 @@ function dueLabel(today: string, dueDate: string | null) {
 
 const scheduleStatusLabels: Record<ProjectScheduleItem["status"], string> = { planned: "Pendiente", in_progress: "En desarrollo", completed: "Completada" };
 
+const attentionSurface: Record<ActivityAttention, string> = { overdue: "bg-danger/10", upcoming: "bg-warning/10", urgent: "" };
+const attentionText: Record<ActivityAttention, string> = { overdue: "text-danger", upcoming: "text-warning", urgent: "text-ink" };
+
 function scheduleProgress(item: ProjectScheduleItem, today: string) {
   if (item.status === "completed") return 100;
   if (item.status !== "in_progress" || !item.startDate || !item.endDate || item.endDate <= item.startDate) return 0;
@@ -58,20 +50,21 @@ function scheduleProgress(item: ProjectScheduleItem, today: string) {
 }
 
 function ActivityGroup({ title, items, development, stages }: { title: string; items: ProjectActivity[]; development: boolean; stages: Stage[] }) {
-  const today = dateKey(new Date());
-  const upcomingLimit = addDays(today, 10);
+  const today = currentDateKey();
   const active = items.filter((item) => item.status !== "cancelled");
   const pending = active.filter((item) => item.status !== "completed").length;
   const hours = active.reduce((total, item) => total + (item.hours ?? 0), 0);
   const overdue = active.filter((item) => item.dueDate && item.dueDate < today && item.status !== "completed").length;
   const trackable = active.filter((item) => item.status !== "completed");
-  const isAttention = (item: ProjectActivity) => item.priority === 5 || Boolean(item.dueDate && item.dueDate <= upcomingLimit);
+  const attentionKind = (item: ProjectActivity) => activityAttention(item, today);
+  const isAttention = (item: ProjectActivity) => Boolean(attentionKind(item));
   const attentionItems = trackable.filter(isAttention);
   const hasAttention = attentionItems.length > 0;
+  const attentionRank = (item: ProjectActivity) => { const attention = attentionKind(item); return attention === "overdue" ? 0 : attention === "upcoming" ? 1 : attention === "urgent" ? 2 : 3; };
   const tableItems = [...trackable].sort((left, right) => {
-    const leftAttention = isAttention(left) ? 1 : 0;
-    const rightAttention = isAttention(right) ? 1 : 0;
-    if (leftAttention !== rightAttention) return rightAttention - leftAttention;
+    const leftAttention = attentionRank(left);
+    const rightAttention = attentionRank(right);
+    if (leftAttention !== rightAttention) return leftAttention - rightAttention;
     if (left.dueDate !== right.dueDate) return (left.dueDate ?? "9999").localeCompare(right.dueDate ?? "9999");
     return right.priority - left.priority;
   });
@@ -84,10 +77,11 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
       key: "title",
       label: "Actividad",
       className: "min-w-0",
-      render: (item) => <div className={`min-w-0 rounded-md px-2 py-1 ${isAttention(item) ? "bg-danger/10" : ""}`}>
-        <p className={`truncate font-medium ${isAttention(item) ? "text-danger" : "text-ink"}`} title={item.title}>{item.title}</p>
+      render: (item) => { const kind = attentionKind(item); return <div className={`min-w-0 rounded-md px-2 py-1 ${kind ? attentionSurface[kind] : ""}`}>
+        <p className={`truncate font-medium ${kind ? attentionText[kind] : "text-ink"}`} title={item.title}>{item.title}</p>
         <p className="mt-0.5 text-[10px] text-muted">P{item.priority}</p>
       </div>
+      }
     },
     {
       key: "status",
@@ -102,8 +96,8 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
       className: "whitespace-nowrap",
       render: (item) => <span className="font-semibold tabular-nums text-ink">{progressFor(item, development, stages).percent}%</span>
     },
-    { key: "due", label: "Fecha fin", className: "whitespace-nowrap", render: (item) => <span className={isAttention(item) ? "font-medium text-danger" : "text-muted"}>{formatDate(item.dueDate)}</span> },
-    { key: "days", label: "Días", className: "whitespace-nowrap", render: (item) => <span className={isAttention(item) ? "font-semibold text-danger" : "text-muted"}>{dueLabel(today, item.dueDate)}</span> }
+    { key: "due", label: "Fecha fin", className: "whitespace-nowrap", render: (item) => { const kind = attentionKind(item); return <span className={kind ? `font-medium ${attentionText[kind]}` : "text-muted"}>{formatDate(item.dueDate)}</span>; } },
+    { key: "days", label: "Días", className: "whitespace-nowrap", render: (item) => { const kind = attentionKind(item); return <span className={kind ? `font-semibold ${attentionText[kind]}` : "text-muted"}>{dueLabel(today, item.dueDate)}</span>; } }
   ];
 
   return <article className="min-w-0 rounded-lg border border-line bg-canvas p-3">
@@ -116,8 +110,8 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
     </div>
     {!development && <div className="mt-3"><div className="flex items-center justify-between gap-2 text-[11px]"><span className="text-subtle">Avance completado</span><span className="font-semibold tabular-nums text-ink">{progress}%</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} /></div></div>}
     {development && <div className="mt-3"><p className="text-[11px] text-subtle">Distribución por etapa</p><div className="mt-1.5 flex flex-wrap gap-1.5">{stageCounts.length ? stageCounts.slice(0, 5).map((stage) => <span key={stage.name} className="rounded-full border border-line bg-surface px-2 py-1 text-[10px] text-muted">{stage.name}: {stage.count}</span>) : <span className="text-[11px] text-subtle">Sin actividades de desarrollo.</span>}</div></div>}
-    <div className="mt-3 flex items-center justify-between gap-3"><p className="text-[11px] font-medium text-subtle">Seguimiento de vencimientos</p><span className="text-[10px] text-subtle">Ventana: 10 días</span></div>
-    {hasAttention ? <p className="mt-1 text-[10px] text-danger">En rojo: próximas a vencer, vencidas o con prioridad P5.</p> : <p className="mt-1 text-[10px] text-subtle">No hay próximas a vencer; se muestran las actividades pendientes restantes.</p>}
+    <div className="mt-3 flex items-center justify-between gap-3"><p className="text-[11px] font-medium text-subtle">Seguimiento de vencimientos</p><span className="text-[10px] text-subtle">Ventana: {ACTIVITY_UPCOMING_DAYS} días</span></div>
+    {hasAttention ? <p className="mt-1 text-[10px] text-subtle"><span className="text-danger">Rojo: vencidas</span> · <span className="text-warning">ámbar: próximas a vencer</span> · la prioridad se muestra como P1–P5.</p> : <p className="mt-1 text-[10px] text-subtle">No hay próximas a vencer; se muestran las actividades pendientes restantes.</p>}
     <DataTable className="dashboard-table !mt-0 !text-xs" containerClassName="!rounded-lg" rows={tableItems} rowKey={(item) => item.id} emptyMessage="No hay actividades pendientes para mostrar." columns={columns} pagination={false} />
   </article>;
 }
@@ -132,7 +126,7 @@ function ModuleKpi({ module, activities, stages }: { module: ProjectModule; acti
 }
 
 export function ProjectFollowUp({ activities, scheduleItems, stages, modules, projectStatus, startDate, endDate }: { activities: ProjectActivity[]; scheduleItems: ProjectScheduleItem[]; stages: Stage[]; modules: ProjectModule[]; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; startDate: string | null; endDate: string | null }) {
-  const today = dateKey(new Date());
+  const today = currentDateKey();
   const datedSchedule = scheduleItems.filter((item) => item.kind === "activity" && (item.startDate || item.endDate)).toSorted((left, right) => (left.startDate ?? left.endDate ?? "9999").localeCompare(right.startDate ?? right.endDate ?? "9999"));
   const currentStage = datedSchedule.find((item) => (item.startDate ?? item.endDate!) <= today && (item.endDate ?? item.startDate!) >= today) ?? null;
   const nextStage = datedSchedule.find((item) => (item.startDate ?? item.endDate!) > today) ?? null;
@@ -154,7 +148,8 @@ export function ProjectFollowUp({ activities, scheduleItems, stages, modules, pr
   const stageProgress = stageToShow ? scheduleProgress(stageToShow, today) : 0;
   const temporalLabel = projectStatus === "completed" ? "Completado" : projectStatus === "cancelled" ? "Cancelado" : projectDelayed ? "Atrasado" : projectProgress === null ? "—" : `${projectProgress}%`;
   const temporalTone = projectDelayed ? "text-danger" : projectStatus === "completed" ? "text-success" : "text-ink";
-  const stageTone = stageDelayed ? "bg-danger/10 text-danger" : stageToShow?.status === "completed" ? "bg-success/10 text-success" : "bg-surface text-muted";
+  const stageUpcoming = Boolean(currentStage && stageDays !== null && stageDays >= 0 && stageDays <= ACTIVITY_UPCOMING_DAYS && stageToShow?.status !== "completed");
+  const stageTone = stageDelayed ? "bg-danger/10 text-danger" : stageToShow?.status === "completed" ? "bg-success/10 text-success" : stageUpcoming ? "bg-warning/10 text-warning" : "bg-surface text-muted";
   const generalActivities = activities.filter((item) => item.type !== "development");
   const developmentActivities = activities.filter((item) => item.type === "development");
 

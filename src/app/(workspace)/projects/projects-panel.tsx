@@ -19,7 +19,7 @@ type ProjectRow = {
   endDate: string | null;
 };
 
-export function ProjectsPanel({ projects, companyName }: { projects: ProjectRow[]; companyName: string }) {
+export function ProjectsPanel({ projects, companyName, readOnly = false }: { projects: ProjectRow[]; companyName: string; readOnly?: boolean }) {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [createPending, setCreatePending] = useState(false);
@@ -34,15 +34,16 @@ export function ProjectsPanel({ projects, companyName }: { projects: ProjectRow[
     { key: "end", label: "Fin previsto", className: "w-[13%] whitespace-nowrap", render: (item) => formatProjectDate(item.endDate) },
     { key: "actions", label: "Acciones", className: "w-[10%]", render: (item) => <RowActions label={item.name} actions={[
       { label: "Ver detalle", href: `/projects/${item.id}` },
-      { label: "Editar", onSelect: () => setEditingProject(item) },
+      ...(!readOnly ? [{ label: "Editar", onSelect: () => setEditingProject(item) }] : []),
     ]} /> },
   ];
 
   return (
     <>
       <ModuleHeader title="Proyectos" description={`${companyName} · Organiza objetivos, fechas y avances.`} action={
-        <CreateDialog title="Nuevo proyecto" triggerLabel="Nuevo proyecto" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><ProjectForm embedded onPendingChange={setCreatePending} /></CreateDialog>
+        !readOnly && <CreateDialog title="Nuevo proyecto" triggerLabel="Nuevo proyecto" open={createOpen} onOpenChange={setCreateOpen} busy={createPending}><ProjectForm embedded onPendingChange={setCreatePending} /></CreateDialog>
       } />
+      {readOnly && <p role="status" className="mt-4 rounded-lg border border-line bg-canvas px-4 py-3 text-sm text-muted">Esta empresa está inactiva. Puedes consultar sus proyectos, pero no modificarlos.</p>}
       <DataTable
         rows={projects}
         filterKey={JSON.stringify([query, status])}
@@ -60,11 +61,11 @@ export function ProjectsPanel({ projects, companyName }: { projects: ProjectRow[
         </>}
         columns={columns}
         rowKey={(item) => item.id}
-        emptyMessage={projects.length === 0 ? "Aún no hay proyectos. Crea el primero para empezar." : "No hay proyectos que coincidan con los filtros."}
+        emptyMessage={projects.length === 0 ? (readOnly ? "Esta empresa no tiene proyectos registrados." : "Aún no hay proyectos. Crea el primero para empezar.") : "No hay proyectos que coincidan con los filtros."}
       />
-      <CreateDialog title="Editar proyecto" triggerLabel="Editar proyecto" showTrigger={false} open={editingProject !== null} onOpenChange={(open) => { if (!open) setEditingProject(null); }} busy={editPending}>
+      {!readOnly && <CreateDialog title="Editar proyecto" triggerLabel="Editar proyecto" showTrigger={false} open={editingProject !== null} onOpenChange={(open) => { if (!open) setEditingProject(null); }} busy={editPending}>
         {editingProject && <ProjectForm key={editingProject.id} initial={editingProject} embedded onPendingChange={setEditPending} onSaved={() => setEditingProject(null)} />}
-      </CreateDialog>
+      </CreateDialog>}
     </>
   );
 }

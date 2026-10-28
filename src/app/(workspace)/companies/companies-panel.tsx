@@ -27,16 +27,42 @@ export function CompaniesPanel({ companies, activeId, canManage, users, currentU
   const [editingMember, setEditingMember] = useState<{ companyId: string; member: CompanyMember } | null>(null);
   const [memberPending, setMemberPending] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
   const columns: TableColumn<CompanyRow>[] = [
     { key: "name", label: "Empresa", className: "w-[40%]", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
     { key: "members", label: "Usuarios", className: "w-[20%]", render: (item) => `${item.memberNames.length} asignado${item.memberNames.length === 1 ? "" : "s"}` },
     { key: "status", label: "Estado", className: "w-[25%]", render: (item) => item.isActive ? (item.id === activeId ? "Activa · Seleccionada" : "Activa") : (item.id === activeId ? "Inactiva · Seleccionada" : "Inactiva") },
     { key: "actions", label: "Acciones", className: "w-[15%]", render: (item) => <RowActions label={item.name} actions={[
       { label: "Ver detalle", onSelect: () => setSelectedCompany(item) },
-      ...(canManage ? [{ label: "Editar", onSelect: () => setEditingCompany(item) }] : []),
+      ...(canManage && item.isActive ? [{ label: "Editar", onSelect: () => setEditingCompany(item) }] : []),
+      ...(canManage && !item.isActive ? [{ label: "Reactivar", onSelect: () => void reactivateCompany(item) }] : []),
       ...(canManage && item.isActive ? [{ label: item.id === activeId ? "Ver proyectos" : "Abrir proyectos", onSelect: () => void openProjects(item) }] : []),
     ]} /> },
   ];
+
+  async function reactivateCompany(item: CompanyRow) {
+    if (reactivatingId) return;
+    setReactivatingId(item.id);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/companies/${item.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setActionError(result?.error || "No se pudo reactivar la empresa.");
+        return;
+      }
+      setCreatedMessage(`Empresa ${item.name} reactivada correctamente.`);
+      router.refresh();
+    } catch {
+      setActionError("No se pudo conectar. Vuelve a intentarlo.");
+    } finally {
+      setReactivatingId(null);
+    }
+  }
 
   async function openProjects(company: CompanyRow) {
     setActionError("");
@@ -87,13 +113,13 @@ export function CompaniesPanel({ companies, activeId, canManage, users, currentU
           <div className="sm:col-span-2"><dt className="text-sm text-muted">Usuarios asignados</dt><dd className="mt-2 space-y-2">
             {selectedCompany.members.length === 0 ? <span className="text-sm text-muted">Sin usuarios asignados</span> : selectedCompany.members.map((member) => <div key={member.id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
               <span className="min-w-0"><span className="block truncate text-sm font-medium text-ink">{member.name}</span><span className="block truncate text-xs text-muted">{member.email} · {member.banned ? "Acceso inactivo" : "Acceso activo"}{member.visibleInActivityAssignments ? " · Visible en actividades" : " · No visible en actividades"}</span></span>
-              {canManage && <Button type="button" variant="secondary" size="compact" className="!px-2.5 !py-1.5 !text-xs" onClick={() => { setSelectedCompany(null); setEditingMember({ companyId: selectedCompany.id, member }); }}>Configurar</Button>}
+              {canManage && selectedCompany.isActive && <Button type="button" variant="secondary" size="compact" className="!px-2.5 !py-1.5 !text-xs" onClick={() => { setSelectedCompany(null); setEditingMember({ companyId: selectedCompany.id, member }); }}>Configurar</Button>}
             </div>)}
           </dd></div>
         </dl>}
       </ViewDetailsDialog>
       <CreateDialog title="Editar empresa" triggerLabel="Editar empresa" showTrigger={false} open={editingCompany !== null} onOpenChange={(open) => { if (!open) setEditingCompany(null); }} busy={editPending}>
-        {editingCompany && <CompanyEditForm companyId={editingCompany.id} initialName={editingCompany.name} initialActive={editingCompany.isActive} initialMemberIds={editingCompany.memberIds} users={users} currentUserId={currentUserId} onPendingChange={setEditPending} onSaved={() => { setEditingCompany(null); setCreatedMessage("Empresa actualizada correctamente."); }} />}
+        {editingCompany?.isActive && <CompanyEditForm companyId={editingCompany.id} initialName={editingCompany.name} initialActive={editingCompany.isActive} initialMemberIds={editingCompany.memberIds} users={users} currentUserId={currentUserId} onPendingChange={setEditPending} onSaved={() => { setEditingCompany(null); setCreatedMessage("Empresa actualizada correctamente."); }} />}
       </CreateDialog>
       <CreateDialog title="Configuración del usuario en la empresa" triggerLabel="Configurar usuario" showTrigger={false} open={editingMember !== null} onOpenChange={(open) => { if (!open) setEditingMember(null); }} busy={memberPending}>
         {editingMember && <CompanyMemberSettingsForm companyId={editingMember.companyId} member={editingMember.member} onPendingChange={setMemberPending} onSaved={() => { setEditingMember(null); setCreatedMessage("Configuración del usuario actualizada."); }} />}

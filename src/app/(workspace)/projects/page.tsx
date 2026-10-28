@@ -15,7 +15,7 @@ export default async function ProjectsPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-6 py-8 sm:px-8">
-      <ProjectsPanel projects={projects} companyName={company.name} />
+      <ProjectsPanel projects={projects} companyName={company.name} readOnly={!company.isActive} />
     </main>
   );
 }

@@ -6,6 +6,7 @@ import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { RowActions } from "../row-actions";
 import { ScheduleExcelImport } from "./schedule-excel-import";
 import { Button } from "@/components/ui/button";
+import { ACTIVITY_UPCOMING_DAYS } from "@/modules/projects/activity-attention";
 
 export type ProjectSchedule = { id: string; status: "draft" | "confirmed"; confirmedAt: string | null };
 export type ProjectScheduleItemStatus = "planned" | "in_progress" | "completed";
@@ -22,7 +23,7 @@ const scheduleColors = {
   rose: { label: "Rojo", bar: "bg-rose-500", dot: "bg-rose-500" },
 } as const;
 const scheduleStatusLabels: Record<ProjectScheduleItemStatus, string> = { planned: "Pendiente", in_progress: "En desarrollo", completed: "Completada" };
-const scheduleStatusDots: Record<ProjectScheduleItemStatus, string> = { planned: "bg-slate-400", in_progress: "bg-blue-500", completed: "bg-green-500" };
+const scheduleStatusDots: Record<ProjectScheduleItemStatus, string> = { planned: "bg-subtle", in_progress: "bg-info", completed: "bg-success" };
 const scheduleKindLabels: Record<ProjectScheduleItemKind, string> = { phase: "Fase", activity: "Actividad" };
 
 function formatDate(value: string | null) { return value ? new Date(`${value}T00:00:00`).toLocaleDateString("es-PE") : "—"; }
@@ -96,20 +97,21 @@ function ScheduleGantt({ items }: { items: ProjectScheduleItem[] }) {
           const barWidth = Math.max(duration * dayWidth - 4, 12);
           const overdueDays = !isPhase && item.status !== "completed" && item.endDate && item.endDate < today ? dayDifference(end, dateAtMidnight(today)) : 0;
           const remainingDays = !isPhase && item.status !== "completed" && item.endDate && item.endDate > today ? dayDifference(dateAtMidnight(today), end) : 0;
+          const upcoming = !isPhase && remainingDays > 0 && remainingDays <= ACTIVITY_UPCOMING_DAYS;
           const timingText = overdueDays > 0 ? `${overdueDays} d atraso` : remainingDays > 0 ? `${remainingDays} d restantes` : item.endDate === today ? "Termina hoy" : "";
           const showBarLabel = !isPhase && barWidth >= 118 && Boolean(timingText);
-          const statusDot = overdueDays > 0 ? "bg-danger" : scheduleStatusDots[item.status];
+          const statusDot = overdueDays > 0 ? "bg-danger" : upcoming ? "bg-warning" : scheduleStatusDots[item.status];
           return <div key={item.id} className={`grid min-h-12 border-b border-line last:border-b-0 ${isPhase ? "bg-canvas" : ""}`} style={{ gridTemplateColumns: `minmax(11rem, 14rem) ${timelineWidth}px` }}>
             <div className={`sticky left-0 z-20 flex min-w-0 items-center border-r border-line px-3 py-2 ${isPhase ? "bg-canvas" : "bg-surface"}`}><span className={`mr-2 size-2 shrink-0 rounded-full ${statusDot}`} aria-hidden="true" /><div className="min-w-0"><span className={`block truncate text-xs text-ink ${isPhase ? "font-semibold uppercase tracking-wide" : "font-medium"}`} title={item.title}>{item.title}</span>{isPhase && <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-subtle">Fase</span>}</div></div>
             <div className={`relative flex items-center ${isPhase ? "bg-canvas" : ""}`} style={{ backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${dayWidth - 1}px, var(--color-line) ${dayWidth - 1}px, var(--color-line) ${dayWidth}px)` }}>
-              {!isPhase && <span title={`${item.title}: ${scheduleStatusLabels[item.status]} · ${formatDate(item.startDate ?? item.endDate)} – ${formatDate(item.endDate ?? item.startDate)}${timingText ? ` · ${timingText}` : ""}${item.description ? ` · ${item.description}` : ""}`} aria-label={`${item.title}${timingText ? `, ${timingText}` : ""}`} className={`absolute z-10 flex h-6 min-w-3 items-center overflow-hidden whitespace-nowrap rounded-md px-2 text-[10px] font-medium leading-6 text-on-primary shadow-sm ${scheduleColors[item.color]?.bar ?? scheduleColors.blue.bar} ${overdueDays > 0 ? "ring-2 ring-danger/70" : ""} ${item.status === "completed" ? "opacity-60" : ""}`} style={{ left: `${offset * dayWidth + 2}px`, width: `${barWidth}px` }}>{showBarLabel ? timingText : ""}</span>}
+              {!isPhase && <span title={`${item.title}: ${scheduleStatusLabels[item.status]} · ${formatDate(item.startDate ?? item.endDate)} – ${formatDate(item.endDate ?? item.startDate)}${timingText ? ` · ${timingText}` : ""}${item.description ? ` · ${item.description}` : ""}`} aria-label={`${item.title}${timingText ? `, ${timingText}` : ""}`} className={`absolute z-10 flex h-6 min-w-3 items-center overflow-hidden whitespace-nowrap rounded-md px-2 text-[10px] font-medium leading-6 text-on-primary shadow-sm ${scheduleColors[item.color]?.bar ?? scheduleColors.blue.bar} ${overdueDays > 0 ? "ring-2 ring-danger/70" : upcoming ? "ring-2 ring-warning/70" : ""} ${item.status === "completed" ? "opacity-60" : ""}`} style={{ left: `${offset * dayWidth + 2}px`, width: `${barWidth}px` }}>{showBarLabel ? timingText : ""}</span>}
             </div>
           </div>;
         })}
       </div>
     </div>
     {rowsWithoutDates.length > 0 && <div className="rounded-lg border border-dashed border-line bg-canvas px-3 py-2 text-xs text-muted"><span className="font-semibold text-ink">Sin fechas:</span> {rowsWithoutDates.map((item) => item.title).join(", ")}</div>}
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-canvas px-3 py-2 text-[11px] text-muted"><span className="font-semibold text-ink">Estado de la etapa:</span>{Object.entries(scheduleStatusLabels).map(([status, label]) => <span key={status} className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${scheduleStatusDots[status as ProjectScheduleItemStatus]}`} aria-hidden="true" />{label}</span>)}<span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-danger" aria-hidden="true" />Atrasada</span></div>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-canvas px-3 py-2 text-[11px] text-muted"><span className="font-semibold text-ink">Estado de la etapa:</span>{Object.entries(scheduleStatusLabels).map(([status, label]) => <span key={status} className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${scheduleStatusDots[status as ProjectScheduleItemStatus]}`} aria-hidden="true" />{label}</span>)}<span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-danger" aria-hidden="true" />Atrasada</span><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-warning" aria-hidden="true" />Próxima a vencer</span></div>
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted"><span>Escala: {density === "compact" ? "más información visible" : "más espacio por día"}</span><Button type="button" variant="secondary" size="compact" onClick={() => setDensity((value) => value === "compact" ? "comfortable" : "compact")}>Cambiar escala</Button></div>
   </div>;
 }
@@ -139,7 +141,7 @@ function ScheduleRowForm({ initial, onSaved, onPendingChange }: { initial?: Proj
   </form>;
 }
 
-export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { projectId: string; initialSchedule: ProjectSchedule | null; initialItems: ProjectScheduleItem[] }) {
+export function ProjectSchedule({ projectId, readOnly = false, initialSchedule, initialItems }: { projectId: string; readOnly?: boolean; initialSchedule: ProjectSchedule | null; initialItems: ProjectScheduleItem[] }) {
   const [schedule, setSchedule] = useState(initialSchedule);
   const [items, setItems] = useState(initialItems);
   const [draftItems, setDraftItems] = useState(initialItems);
@@ -198,15 +200,15 @@ export function ProjectSchedule({ projectId, initialSchedule, initialItems }: { 
   ];
 
   return <div className="mt-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{!editing && <CreateDialog title="Importar cronograma desde Excel" triggerLabel="Importar Excel" open={importOpen} onOpenChange={setImportOpen} busy={importPending}><ScheduleExcelImport projectId={projectId} onImported={loadImportedItems} onPendingChange={setImportPending} /></CreateDialog>}{schedule && !editing && <Button type="button" variant="success" onClick={() => exportSchedule(items, projectId)}>Exportar para Excel</Button>}{schedule && !editing && <Button type="button" variant="secondary" onClick={beginEditing}>Editar cronograma</Button>}{!schedule && !editing && <Button type="button" variant="primary" onClick={() => setEditing(true)}>Crear cronograma</Button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><Button type="button" variant={view === "table" ? "primary" : "ghost"} size="compact" onClick={() => setView("table")} aria-pressed={view === "table"}>Tabla</Button><Button type="button" variant={view === "gantt" ? "primary" : "ghost"} size="compact" onClick={() => setView("gantt")} aria-pressed={view === "gantt"}>Gantt</Button></div>}</div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Cronograma</h2><p className="mt-1 text-xs text-subtle">{readOnly ? "Consulta las etapas y fechas del proyecto." : "Edita las filas en la tabla y guarda los cambios. La vista Gantt se actualiza con el mismo cronograma."}</p></div><div className="flex flex-wrap items-center justify-end gap-2">{!readOnly && !editing && <CreateDialog title="Importar cronograma desde Excel" triggerLabel="Importar Excel" open={importOpen} onOpenChange={setImportOpen} busy={importPending}><ScheduleExcelImport projectId={projectId} onImported={loadImportedItems} onPendingChange={setImportPending} /></CreateDialog>}{schedule && !editing && <Button type="button" variant="success" onClick={() => exportSchedule(items, projectId)}>Exportar para Excel</Button>}{!readOnly && schedule && !editing && <Button type="button" variant="secondary" onClick={beginEditing}>Editar cronograma</Button>}{!readOnly && !schedule && !editing && <Button type="button" variant="primary" onClick={() => setEditing(true)}>Crear cronograma</Button>}{!editing && schedule && <div className="flex rounded-lg border border-line p-1" role="group" aria-label="Vista del cronograma"><Button type="button" variant={view === "table" ? "primary" : "ghost"} size="compact" onClick={() => setView("table")} aria-pressed={view === "table"}>Tabla</Button><Button type="button" variant={view === "gantt" ? "primary" : "ghost"} size="compact" onClick={() => setView("gantt")} aria-pressed={view === "gantt"}>Gantt</Button></div>}</div></div>
     {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
-    {editing ? <>
+    {editing && !readOnly ? <>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">{schedule ? "Editar filas" : "Crear filas"}</h3><Button type="button" variant="secondary" onClick={() => setRowEditor(null)}>Añadir fila</Button></div>
       <DataTable className="!text-xs" pagination={false} rows={draftItems} columns={editableColumns} rowKey={(item) => item.id} emptyMessage="Añade la primera fila del cronograma." />
       <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="secondary" onClick={cancelEditing} disabled={pending}>Cancelar</Button><Button type="button" variant="primary" loading={pending} onClick={() => void saveSchedule()}>{pending ? "Guardando…" : "Guardar cronograma"}</Button></div>
     </> : <>
       {view === "table" ? <DataTable className="!text-xs" pagination={false} rows={items} columns={readOnlyColumns} rowKey={(item) => item.id} emptyMessage="Aún no hay filas en el cronograma." /> : <ScheduleGantt items={items} />}
     </>}
-    <CreateDialog title={rowEditor ? "Editar fila del cronograma" : "Añadir fila al cronograma"} triggerLabel="Añadir fila" open={rowEditor !== undefined} onOpenChange={(open) => { if (!open) setRowEditor(undefined); }} showTrigger={false}><ScheduleRowForm initial={rowEditor ?? undefined} onSaved={saveRow} onPendingChange={() => undefined} /></CreateDialog>
+    {!readOnly && <CreateDialog title={rowEditor ? "Editar fila del cronograma" : "Añadir fila al cronograma"} triggerLabel="Añadir fila" open={rowEditor !== undefined} onOpenChange={(open) => { if (!open) setRowEditor(undefined); }} showTrigger={false}><ScheduleRowForm initial={rowEditor ?? undefined} onSaved={saveRow} onPendingChange={() => undefined} /></CreateDialog>}
   </div>;
 }

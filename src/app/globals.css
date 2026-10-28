@@ -100,7 +100,26 @@ body {
 }
 
 .login-page {
-  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--surface) 68%, var(--canvas)), var(--canvas) 65%);
+  background: #07101f;
+}
+
+.login-wave-background {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.login-page::after {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(135deg, rgb(3 9 24 / 0.36), transparent 52%, rgb(37 99 235 / 0.14));
+  content: "";
+  pointer-events: none;
 }
 
 .login-card {
