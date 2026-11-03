@@ -11,7 +11,7 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState("");
   return (
     <div>
-      <Button variant="ghost" size={compact ? "icon" : "default"} onClick={async () => {
+      <Button variant={compact ? "secondary" : "sidebar"} size={compact ? "icon" : "default"} onClick={async () => {
         try {
           const result = await authClient.signOut();
           if (result.error) { setError("No se pudo cerrar la sesión."); return; }

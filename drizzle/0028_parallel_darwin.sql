@@ -1,0 +1,1 @@
+ALTER TABLE "calendar_sync_run" ADD COLUMN "trigger" text DEFAULT 'manual' NOT NULL;

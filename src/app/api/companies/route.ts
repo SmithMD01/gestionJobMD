@@ -8,6 +8,8 @@ import { company, companyMember, companyTeamMember } from "@/modules/companies/s
 import { ACTIVE_COMPANY_COOKIE, companiesForUser, companyCookieOptions } from "@/modules/companies/context";
 import { auditEvent } from "@/modules/audit/schema";
 import { createdDetail } from "@/modules/audit/details";
+import { appRole, roleModulePermission } from "@/modules/access/schema";
+import { MODULE_CATALOG } from "@/modules/access/catalog";
 
 const companyInput = z.object({ name: z.string().trim().min(1).max(120), memberIds: z.array(z.string().min(1)).max(500).default([]) });
 
@@ -33,6 +35,10 @@ export async function POST(request: Request) {
     const [newCompany] = await tx.insert(company).values({ name: parsed.data.name, createdBy: session.user.id }).returning();
     await tx.insert(companyMember).values(memberIds.map((userId) => ({ companyId: newCompany.id, userId, visibleInActivityAssignments: false })));
     await tx.insert(companyTeamMember).values(existingUsers.map((member) => ({ companyId: newCompany.id, userId: member.id, name: member.name, email: member.email, role: member.role })));
+    const [adminRole] = await tx.insert(appRole).values({ companyId: newCompany.id, key: "admin", name: "Administrador", description: "Acceso completo a los módulos de la empresa.", isSystem: true, createdBy: session.user.id }).returning();
+    if (adminRole) {
+      await tx.insert(roleModulePermission).values(MODULE_CATALOG.map((entry) => ({ roleId: adminRole.id, moduleKey: entry.key, canAccess: true, updatedBy: session.user.id })));
+    }
     await tx.insert(auditEvent).values({ companyId: newCompany.id, actorUserId: session.user.id, entityType: "company", entityId: newCompany.id, entityName: newCompany.name, action: "company.created", changeDetail: createdDetail("la empresa", newCompany.name) });
     return newCompany;
   });

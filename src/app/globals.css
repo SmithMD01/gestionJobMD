@@ -327,6 +327,37 @@ button, input, a {
   box-shadow: none;
 }
 
+.ui-button-sidebar {
+  width: 100%;
+  min-height: 2.5rem;
+  justify-content: flex-start;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.ui-button-sidebar:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--glass-border));
+  background: color-mix(in srgb, var(--accent-soft) 52%, var(--glass-surface));
+  color: var(--accent-strong);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 12px var(--glass-shadow), 0 0 12px var(--glass-glow);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+  backdrop-filter: blur(12px) saturate(135%);
+}
+
+.ui-button-sidebar-active,
+.ui-button-sidebar-active:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--glass-border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--glass-surface));
+  color: var(--accent-strong);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 12px var(--glass-shadow), 0 0 14px var(--glass-glow);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+  backdrop-filter: blur(12px) saturate(135%);
+}
+
 .ui-button-compact {
   min-height: 1.75rem;
   padding: 0.25rem 0.625rem;

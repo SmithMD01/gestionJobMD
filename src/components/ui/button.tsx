@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "success" | "warning" | "danger" | "neutral" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "success" | "warning" | "danger" | "neutral" | "ghost" | "sidebar";
 export type ButtonSize = "default" | "compact" | "icon";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -27,6 +27,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger: "ui-button-danger",
   neutral: "ui-button-neutral",
   ghost: "ui-button-ghost",
+  sidebar: "ui-button-sidebar",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
