@@ -14,6 +14,7 @@ export type ModulePermissionKey =
   | "users"
   | "roles"
   | "settings"
+  | "settings.pipeline"
   | "settings.calendar-usage"
   | "audit"
   | "calendar"
@@ -48,9 +49,10 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
   { key: "projects.benchwork", label: "Benchwork", description: "Espacio de documentación asistida y trabajo técnico.", group: "projects", parentKey: "projects", icon: "benchwork" },
   { key: "activities", label: "Actividades", description: "Vista centralizada de actividades de la empresa.", group: "principal", href: "/activities", icon: "activity" },
   { key: "companies", label: "Empresas", description: "Empresas y configuración de sus integrantes.", group: "administration", href: "/companies", icon: "companies" },
-  { key: "users", label: "Usuarios", description: "Cuentas, estados y asignaciones de usuarios.", group: "administration", href: "/users", icon: "users", requiredForAdmin: true },
-  { key: "roles", label: "Roles", description: "Roles por empresa y permisos de acceso a módulos.", group: "administration", href: "/roles", icon: "roles", requiredForAdmin: true },
+  { key: "users", label: "Usuarios", description: "Cuentas, estados y asignaciones de usuarios. Solo administradores.", group: "administration", href: "/users", icon: "users", requiredForAdmin: true, adminOnly: true },
+  { key: "roles", label: "Roles", description: "Roles por empresa y permisos de acceso a módulos. Solo administradores.", group: "administration", href: "/roles", icon: "roles", requiredForAdmin: true, adminOnly: true },
   { key: "settings", label: "Configuración", description: "Parámetros configurables del sistema y de cada empresa.", group: "administration", href: "/settings", icon: "settings", requiredForAdmin: true },
+  { key: "settings.pipeline", label: "Pipeline de desarrollo", description: "Configuración de etapas de desarrollo compartidas por los proyectos de la empresa.", group: "administration", parentKey: "settings", href: "/settings/pipeline", icon: "development" },
   { key: "settings.calendar-usage", label: "Consumo de calendario", description: "Seguimiento de sincronizaciones y solicitudes a proveedores de calendario. Solo administradores.", group: "administration", parentKey: "settings", href: "/calendar-monitor", icon: "calendar", requiredForAdmin: true, adminOnly: true },
   { key: "audit", label: "Auditoría", description: "Historial de cambios y operaciones relevantes.", group: "control", href: "/audit", icon: "audit" },
   { key: "calendar", label: "Calendario", description: "Calendario personal dentro de la empresa activa.", group: "principal", href: "/calendar", icon: "calendar" },

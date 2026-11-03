@@ -2,15 +2,21 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { authorizeProjectRequest } from "@/modules/projects/authorization";
+import { auth } from "@/lib/auth";
+import { ACTIVE_COMPANY_COOKIE, activeCompanyForUser } from "@/modules/companies/context";
+import { cookies } from "next/headers";
+import { hasModuleAccess } from "@/modules/access/permissions";
 import { projectInCompany } from "@/modules/projects/access";
 import { projectDocument } from "@/modules/projects/schema";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string; documentId: string }> }) {
-  const access = await authorizeProjectRequest(request);
-  if (access.response) return access.response;
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session) return new Response("No autenticado", { status: 401 });
+  const selectedId = (await cookies()).get(ACTIVE_COMPANY_COOKIE)?.value;
+  const activeCompany = await activeCompanyForUser(session.user.id, selectedId);
+  if (!activeCompany || !await hasModuleAccess(session.user.id, activeCompany.id, "projects.documentation", session.user.role)) return new Response("No autorizado", { status: 403 });
   const { id, documentId } = await params;
-  if (!z.uuid().safeParse(id).success || !z.uuid().safeParse(documentId).success || !await projectInCompany(id, access.company!.id)) return new Response("Documento no encontrado", { status: 404 });
+  if (!z.uuid().safeParse(id).success || !z.uuid().safeParse(documentId).success || !await projectInCompany(id, activeCompany.id)) return new Response("Documento no encontrado", { status: 404 });
   const [document] = await db.select({ fileName: projectDocument.fileName, mimeType: projectDocument.mimeType, fileData: projectDocument.fileData })
     .from(projectDocument).where(and(eq(projectDocument.id, documentId), eq(projectDocument.projectId, id)));
   if (!document) return new Response("Documento no encontrado", { status: 404 });

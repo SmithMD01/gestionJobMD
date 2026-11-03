@@ -11,8 +11,17 @@ import { parseChecklist, serializeChecklist } from "@/modules/projects/checklist
 import { Button } from "@/components/ui/button";
 import { activityAttention, currentDateKey } from "@/modules/projects/activity-attention";
 
-type Stage = { id: string; name: string; color: string };
+type Stage = { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean };
 type TeamMember = { id: string; name: string; role: string | null };
+
+function completedMonth(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en", { timeZone: "America/Lima", year: "numeric", month: "2-digit" }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}`;
+}
 
 function stageColor(color: string) {
   return ({ blue: "bg-blue-500", violet: "bg-violet-500", amber: "bg-amber-500", green: "bg-green-500", neutral: "bg-slate-400" }[color] ?? "bg-slate-400");
@@ -30,11 +39,23 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
   const [checklistPending, setChecklistPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
+  const [finalizedMonth, setFinalizedMonth] = useState(() => `${currentDateKey().slice(0, 7)}`);
+  const [draggedActivityId, setDraggedActivityId] = useState<string | null>(null);
+  const [dragTargetStageId, setDragTargetStageId] = useState<string | null>(null);
+  const [movingActivityId, setMovingActivityId] = useState<string | null>(null);
 
   const moduleNames = useMemo(() => new Map(modules.map((module) => [module.id, module.name])), [modules]);
   const today = currentDateKey();
-  const development = activities.filter((item) => item.type === "development" && (showCancelled || item.status !== "cancelled") && (moduleFilter === "all" || item.moduleId === moduleFilter));
-  const visibleStages = showCancelled ? [...stages, { id: "cancelled", name: "Canceladas", color: "neutral" }] : stages;
+  const terminalStageIds = new Set(stages.filter((stage) => stage.isTerminal).map((stage) => stage.id));
+  const completionMonths = Array.from(new Set(activities.filter((item) => item.type === "development" && item.developmentStageId && terminalStageIds.has(item.developmentStageId) && item.completedAt).map((item) => completedMonth(item.completedAt)).filter(Boolean))).sort().reverse();
+  const currentMonth = today.slice(0, 7);
+  const development = activities.filter((item) => {
+    if (item.type !== "development" || (!showCancelled && item.status === "cancelled") || (moduleFilter !== "all" && item.moduleId !== moduleFilter)) return false;
+    if (!item.developmentStageId || !terminalStageIds.has(item.developmentStageId)) return true;
+    const month = completedMonth(item.completedAt);
+    return finalizedMonth === "all" || month === finalizedMonth;
+  });
+  const visibleStages = stages.filter((stage) => showCancelled || !stage.isCancelled);
 
   function saved(item: ProjectActivity) {
     const responsibleNames = item.responsibleIds?.map((id) => teamMembers.find((member) => member.id === id)?.name).filter((name): name is string => Boolean(name));
@@ -80,6 +101,25 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
     }
   }
 
+  async function moveToStage(item: ProjectActivity, stage: Stage) {
+    if (readOnly || pending || movingActivityId || item.developmentStageId === stage.id) return;
+    setMovingActivityId(item.id);
+    const previous = activities;
+    const completedAt = stage.isTerminal ? new Date().toISOString() : null;
+    const status = stage.isCancelled ? "cancelled" : stage.isTerminal ? "completed" : item.status === "cancelled" || item.status === "completed" ? "pending" : item.status;
+    setActivities((current) => current.map((row) => row.id === item.id ? { ...row, developmentStageId: stage.id, completedAt, status } : row));
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${projectId}/activities/${item.id}/stage`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ developmentStageId: stage.id }) });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.activity) throw new Error(result?.error ?? "No se pudo cambiar la etapa.");
+      setActivities((current) => current.map((row) => row.id === item.id ? { ...row, ...result.activity } : row));
+    } catch (caught) {
+      setActivities(previous);
+      setError(caught instanceof Error ? caught.message : "No se pudo cambiar la etapa.");
+    } finally { setMovingActivityId(null); }
+  }
+
   return <div className="mt-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-base font-semibold">Desarrollo</h2><p className="mt-1 text-xs text-subtle">Actividades técnicas organizadas por etapa.</p></div>
@@ -94,6 +134,8 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
     </div>
 
     {modules.length > 0 && <div className="mt-3 max-w-xs"><label className="block text-xs font-medium text-subtle">Filtrar por módulo<select value={moduleFilter} onChange={(event) => setModuleFilter(event.target.value)} className="ui-field mt-1 block"><option value="all">Todos los módulos</option>{modules.map((module) => <option key={module.id} value={module.id}>{module.parentId ? "↳ " : ""}{module.name}</option>)}</select></label></div>}
+
+    {stages.some((stage) => stage.isTerminal) && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">{view === "kanban" && !readOnly ? <p className="text-[11px] text-subtle">Arrastra una tarjeta a otra columna para cambiar su etapa.</p> : <span />}{<label className="text-xs font-medium text-muted">Finalizadas<select value={finalizedMonth} onChange={(event) => setFinalizedMonth(event.target.value)} className="ui-field ml-2 inline-flex w-auto min-w-44"><option value={currentMonth}>Del mes actual</option>{completionMonths.filter((month) => month !== currentMonth).map((month) => <option key={month} value={month}>{new Intl.DateTimeFormat("es-PE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`))}</option>)}<option value="all">Todos los meses</option></select></label>}</div>}
 
     {view === "table" ? <DataTable
       className="!text-xs"
@@ -113,10 +155,12 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
         { key: "actions", label: "Acciones", render: (item) => <RowActions label={item.title} actions={[{ label: "Ver detalle", onSelect: () => { setDetail(item); setDetailSource("table"); } }, ...(!readOnly ? [{ label: "Editar", onSelect: () => setEditor(item) }, { label: "Eliminar", tone: "danger" as const, onSelect: () => { setError(""); setDeleting(item); } }] : [])]} /> },
       ] satisfies TableColumn<ProjectActivity>[]}
     /> : <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-      {visibleStages.map((stage) => <section key={stage.id} className="w-64 shrink-0 rounded-lg border border-line bg-canvas p-3"><h3 className="flex items-center gap-2 text-xs font-semibold text-ink"><span className={`size-2 rounded-full ${stageColor(stage.color)}`} />{stage.name}</h3><div className="mt-3 space-y-2">
-        {development.filter((item) => (stage.id === "cancelled" ? item.status === "cancelled" : item.developmentStageId === stage.id)).map((item) => { const attention = activityAttention(item, today); const attentionClasses = attention === "overdue" ? "border-danger/40 bg-danger/5" : attention === "upcoming" ? "border-warning/40 bg-warning/5" : "border-line bg-surface"; const attentionText = attention === "overdue" ? "text-danger" : attention === "upcoming" ? "text-warning" : "text-ink"; return <article key={item.id} role="button" tabIndex={0} onClick={() => { setDetail(item); setDetailSource("kanban"); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetail(item); setDetailSource("kanban"); } }} className={`cursor-pointer rounded-md border p-2.5 text-xs transition-colors hover:border-ink/40 hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink ${attentionClasses}`}><p className="flex flex-wrap items-center gap-1.5"><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold text-on-primary">{activityCode(item)}</span><span className={`font-medium ${attentionText}`}>{item.title}</span></p><p className="mt-1 text-subtle">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</p><p className={`mt-1 ${attention ? attentionText : "text-subtle"}`}>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</p><p className="mt-1 text-subtle">{item.responsibleNames?.join(", ") || "Sin responsables"}</p></article>; })}
+      {visibleStages.map((stage) => <section key={stage.id} onDragOver={(event) => { if (!readOnly && !movingActivityId) { event.preventDefault(); setDragTargetStageId(stage.id); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragTargetStageId(null); }} onDrop={(event) => { event.preventDefault(); const item = development.find((entry) => entry.id === (event.dataTransfer.getData("text/plain") || draggedActivityId)); if (item) void moveToStage(item, stage); setDragTargetStageId(null); setDraggedActivityId(null); }} className={`w-64 shrink-0 rounded-lg border bg-canvas p-3 transition-colors ${dragTargetStageId === stage.id ? "border-accent bg-accent/5" : "border-line"}`}><h3 className="flex items-center gap-2 text-xs font-semibold text-ink"><span className={`size-2 rounded-full ${stageColor(stage.color)}`} />{stage.name}</h3><div className="mt-3 min-h-12 space-y-2">
+        {development.filter((item) => stage.isCancelled ? item.status === "cancelled" || item.developmentStageId === stage.id : item.developmentStageId === stage.id).map((item) => { const attention = activityAttention(item, today); const attentionClasses = attention === "overdue" ? "border-danger/40 bg-danger/5" : attention === "upcoming" ? "border-warning/40 bg-warning/5" : "border-line bg-surface"; const attentionText = attention === "overdue" ? "text-danger" : attention === "upcoming" ? "text-warning" : "text-ink"; return <article key={item.id} role="button" tabIndex={0} draggable={!readOnly && !movingActivityId} onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; setDraggedActivityId(item.id); }} onDragEnd={() => { setDraggedActivityId(null); setDragTargetStageId(null); }} onClick={() => { setDetail(item); setDetailSource("kanban"); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetail(item); setDetailSource("kanban"); } }} className={`cursor-pointer rounded-md border p-2.5 text-xs transition-colors hover:border-ink/40 hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink ${attentionClasses} ${draggedActivityId === item.id ? "opacity-45" : ""}`}><p className="flex flex-wrap items-center gap-1.5"><span className="inline-flex rounded bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold text-on-primary">{activityCode(item)}</span><span className={`font-medium ${attentionText}`}>{item.title}</span></p><p className="mt-1 text-subtle">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</p><p className={`mt-1 ${attention ? attentionText : "text-subtle"}`}>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</p><p className="mt-1 text-subtle">{item.responsibleNames?.join(", ") || "Sin responsables"}</p></article>; })}
       </div></section>)}
     </div>}
+
+    {error && <p role="alert" className="mt-3 text-xs text-danger">{error}</p>}
 
     <ProjectActivityDetail activity={detail} stageName={detail ? stages.find((stage) => stage.id === detail.developmentStageId)?.name : undefined} moduleName={detail ? moduleNames.get(detail.moduleId ?? "") : undefined} open={detail !== null} onOpenChange={(open) => { if (!open) { setDetail(null); setDetailSource(null); } }} checklistPending={checklistPending !== null} onToggleChecklist={readOnly ? undefined : (index) => void toggleChecklist(index)} onEdit={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setEditor(detail); } } : undefined} onDelete={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setError(""); setDeleting(detail); } } : undefined} />
     {!readOnly && <CreateDialog title={editor ? "Editar actividad de desarrollo" : "Crear actividad de desarrollo"} triggerLabel="Crear actividad" open={editor !== undefined} onOpenChange={(open) => { if (!open && !pending) setEditor(undefined); }} busy={pending} showTrigger={false}>

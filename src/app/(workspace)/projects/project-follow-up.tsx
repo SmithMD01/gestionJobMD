@@ -4,8 +4,9 @@ import { statusLabels, StatusBadge, type ProjectActivity } from "./project-activ
 import type { ProjectScheduleItem } from "./project-schedule";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { ACTIVITY_UPCOMING_DAYS, activityAttention, currentDateKey, type ActivityAttention } from "@/modules/projects/activity-attention";
+import { activityProgressPercent, formatProgressPercent } from "@/modules/projects/activity-progress";
 
-type Stage = { id: string; name: string; color: string };
+type Stage = { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean };
 type ProjectModule = { id: string; parentId: string | null; name: string };
 
 function formatDate(value: string | null) {
@@ -23,10 +24,11 @@ function stageColor(color: string) {
 const activityProgress: Record<ProjectActivity["status"], number> = { to_validate: 0, pending: 0, in_progress: 50, blocked: 50, completed: 100, cancelled: 0 };
 
 function progressFor(item: ProjectActivity, development: boolean, stages: Stage[]) {
-  if (!development) return { label: statusLabels[item.status], percent: activityProgress[item.status] };
-  const progressStages = stages.filter((stage) => stage.id !== "cancelled" && stage.name.toLocaleLowerCase() !== "canceladas");
+  if (!development) return { label: statusLabels[item.status], percent: activityProgressPercent(item.checklist, activityProgress[item.status]) };
+  const progressStages = stages.filter((stage) => !stage.isCancelled);
   const stageIndex = progressStages.findIndex((stage) => stage.id === item.developmentStageId);
-  const percent = stageIndex < 0 || progressStages.length === 0 ? 0 : Math.round(((stageIndex + 1) / progressStages.length) * 100);
+  const stagePercent = stageIndex < 0 || progressStages.length === 0 ? 0 : progressStages[stageIndex].isTerminal ? 100 : Math.round(((stageIndex + 1) / progressStages.length) * 100);
+  const percent = activityProgressPercent(item.checklist, stagePercent);
   return { label: stageIndex < 0 ? "Sin etapa" : progressStages[stageIndex].name, percent };
 }
 
@@ -68,8 +70,7 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
     if (left.dueDate !== right.dueDate) return (left.dueDate ?? "9999").localeCompare(right.dueDate ?? "9999");
     return right.priority - left.priority;
   });
-  const completed = active.filter((item) => item.status === "completed").length;
-  const progress = active.length ? Math.round((completed / active.length) * 100) : 0;
+  const progress = active.length ? active.reduce((total, item) => total + progressFor(item, development, stages).percent, 0) / active.length : 0;
   const stageNames = new Map(stages.map((stage) => [stage.id, stage.name]));
   const stageCounts = Array.from(new Set(active.map((item) => item.developmentStageId ?? "none"))).map((stageId) => ({ name: stageId === "none" ? "Sin etapa" : stageNames.get(stageId) ?? "Etapa no disponible", count: active.filter((item) => (item.developmentStageId ?? "none") === stageId).length })).sort((left, right) => right.count - left.count);
   const columns: TableColumn<ProjectActivity>[] = [
@@ -94,7 +95,7 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
       key: "progress",
       label: "Avance",
       className: "whitespace-nowrap",
-      render: (item) => <span className="font-semibold tabular-nums text-ink">{progressFor(item, development, stages).percent}%</span>
+      render: (item) => <span className="font-semibold tabular-nums text-ink">{formatProgressPercent(progressFor(item, development, stages).percent)}%</span>
     },
     { key: "due", label: "Fecha fin", className: "whitespace-nowrap", render: (item) => { const kind = attentionKind(item); return <span className={kind ? `font-medium ${attentionText[kind]}` : "text-muted"}>{formatDate(item.dueDate)}</span>; } },
     { key: "days", label: "Días", className: "whitespace-nowrap", render: (item) => { const kind = attentionKind(item); return <span className={kind ? `font-semibold ${attentionText[kind]}` : "text-muted"}>{dueLabel(today, item.dueDate)}</span>; } }
@@ -108,7 +109,7 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
       <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Próximas / P5</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{attentionItems.length}</p></div>
       <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Vencidas</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{overdue}</p></div>
     </div>
-    {!development && <div className="mt-3"><div className="flex items-center justify-between gap-2 text-[11px]"><span className="text-subtle">Avance completado</span><span className="font-semibold tabular-nums text-ink">{progress}%</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} /></div></div>}
+    {!development && <div className="mt-3"><div className="flex items-center justify-between gap-2 text-[11px]"><span className="text-subtle">Avance completado</span><span className="font-semibold tabular-nums text-ink">{formatProgressPercent(progress)}%</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} /></div></div>}
     {development && <div className="mt-3"><p className="text-[11px] text-subtle">Distribución por etapa</p><div className="mt-1.5 flex flex-wrap gap-1.5">{stageCounts.length ? stageCounts.slice(0, 5).map((stage) => <span key={stage.name} className="rounded-full border border-line bg-surface px-2 py-1 text-[10px] text-muted">{stage.name}: {stage.count}</span>) : <span className="text-[11px] text-subtle">Sin actividades de desarrollo.</span>}</div></div>}
     <div className="mt-3 flex items-center justify-between gap-3"><p className="text-[11px] font-medium text-subtle">Seguimiento de vencimientos</p><span className="text-[10px] text-subtle">Ventana: {ACTIVITY_UPCOMING_DAYS} días</span></div>
     {hasAttention ? <p className="mt-1 text-[10px] text-subtle"><span className="text-danger">Rojo: vencidas</span> · <span className="text-warning">ámbar: próximas a vencer</span> · la prioridad se muestra como P1–P5.</p> : <p className="mt-1 text-[10px] text-subtle">No hay próximas a vencer; se muestran las actividades pendientes restantes.</p>}
@@ -119,10 +120,11 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
 function ModuleKpi({ module, activities, stages }: { module: ProjectModule; activities: ProjectActivity[]; stages: Stage[] }) {
   const active = activities.filter((item) => item.type === "development" && item.moduleId === module.id && item.status !== "cancelled");
   const progressValues = active.map((item) => progressFor(item, true, stages).percent);
-  const pending = active.filter((_, index) => progressValues[index] < 100).length;
-  const completed = active.length - pending;
-  const progress = active.length ? Math.round(progressValues.reduce((total, value) => total + value, 0) / active.length) : 0;
-  return <article className="rounded-lg border border-line bg-canvas px-3 py-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-ink" title={module.name}>{module.name}</p><span className="shrink-0 text-[10px] text-subtle">{active.length} total</span></div><div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Realizadas</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{completed}</p></div><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Pendientes</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{pending}</p></div></div><div className="mt-3"><div className="flex items-center justify-between text-[10px]"><span className="text-subtle">Avance por etapas</span><span className="font-semibold tabular-nums text-ink">{progress}%</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} /></div></div></article>;
+  const terminalStageIds = new Set(stages.filter((stage) => stage.isTerminal).map((stage) => stage.id));
+  const completed = active.filter((item) => terminalStageIds.has(item.developmentStageId ?? "")).length;
+  const pending = active.length - completed;
+  const progress = active.length ? progressValues.reduce((total, value) => total + value, 0) / active.length : 0;
+  return <article className="rounded-lg border border-line bg-canvas px-3 py-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-ink" title={module.name}>{module.name}</p><span className="shrink-0 text-[10px] text-subtle">{active.length} total</span></div><div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Realizadas</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{completed}</p></div><div className="rounded-md bg-surface px-2 py-1.5"><p className="text-[10px] text-subtle">Pendientes</p><p className="mt-0.5 text-sm font-semibold tabular-nums text-ink">{pending}</p></div></div><div className="mt-3"><div className="flex items-center justify-between text-[10px]"><span className="text-subtle">Avance por etapas</span><span className="font-semibold tabular-nums text-ink">{formatProgressPercent(progress)}%</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} /></div></div></article>;
 }
 
 export function ProjectFollowUp({ activities, scheduleItems, stages, modules, projectStatus, startDate, endDate }: { activities: ProjectActivity[]; scheduleItems: ProjectScheduleItem[]; stages: Stage[]; modules: ProjectModule[]; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; startDate: string | null; endDate: string | null }) {
@@ -156,10 +158,10 @@ export function ProjectFollowUp({ activities, scheduleItems, stages, modules, pr
   return <section className="mt-6 border-t border-line pt-5" aria-labelledby="project-follow-up">
     <div><h3 id="project-follow-up" className="text-sm font-semibold">Seguimiento del proyecto</h3><p className="mt-1 text-xs text-subtle">Indicadores separados para actividades, desarrollo y cronograma.</p></div>
     <div className="mt-4 grid gap-3 lg:grid-cols-2"><ActivityGroup title="Actividades" items={generalActivities} development={false} stages={stages} /><ActivityGroup title="Desarrollo" items={developmentActivities} development={true} stages={stages} /></div>
-    <div className="mt-3"><div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold text-ink">Seguimiento de desarrollo por módulo</h4><p className="mt-1 text-xs text-subtle">Las pendientes son actividades que aún no están en la última etapa de desarrollo.</p></div></div>{modules.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{modules.map((module) => <ModuleKpi key={module.id} module={module} activities={developmentActivities} stages={stages} />)}</div> : <p className="mt-3 rounded-lg border border-dashed border-line px-3 py-3 text-xs text-subtle">Crea módulos desde la configuración del proyecto para ver estos indicadores.</p>}</div>
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
       <div className="rounded-lg border border-line bg-canvas px-3 py-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-ink">Avance temporal del proyecto</p><span className={`text-xs font-semibold tabular-nums ${temporalTone}`}>{projectDelayed ? `${temporalLabel} · ${projectOverdueDays} d` : temporalLabel}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-line"><div className={`h-full ${projectDelayed ? "bg-danger" : "bg-success"}`} style={{ width: `${projectProgress ?? (projectStatus === "completed" ? 100 : 0)}%` }} /></div><p className="mt-2 text-[11px] text-subtle">{timelineStartDate && timelineEndDate ? `${formatDate(timelineStartDate)} – ${formatDate(timelineEndDate)}${!startDate || !endDate ? " · fechas del Gantt" : ""}` : "Registra fechas del proyecto o del Gantt para calcularlo."}</p>{projectDelayed && <p className="mt-1 text-[11px] text-danger">La fecha final pasó hace {projectOverdueDays} días y el proyecto aún no está completado.</p>}</div>
       <div className="rounded-lg border border-line bg-canvas px-3 py-3"><p className="text-xs font-medium text-ink">Etapa del cronograma</p><div className="mt-1 flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-ink">{stageToShow?.title ?? "Sin cronograma con fechas"}</p>{stageToShow && <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageTone}`}>{scheduleStatusLabels[stageToShow.status]}{stageDelayed ? ` · Atrasada ${stageOverdueDays} d` : ""}</span>}</div><p className={`mt-0.5 text-[11px] ${stageDelayed ? "text-danger" : "text-subtle"}`}>{currentStage ? stageDelayed ? `Etapa actual · venció hace ${stageOverdueDays} días` : stageDays === null ? "Etapa actual · sin fecha final" : `Etapa actual · ${stageDays === 0 ? "termina hoy" : `${stageDays} días restantes`}` : nextStage ? `Próxima etapa · ${nextStageDays === 0 ? "comienza hoy" : `comienza en ${nextStageDays} días`}` : stageToShow ? stageDelayed ? `Etapa finalizada en fecha prevista, pero aún no está completada.` : "Cronograma finalizado según las fechas registradas." : "Añade fechas para calcular la etapa actual."}</p>{stageToShow && <div className="mt-2"><div className="flex items-center justify-between gap-2 text-[10px]"><span className="text-subtle">Avance de la etapa</span><span className={`font-semibold tabular-nums ${stageDelayed ? "text-danger" : "text-ink"}`}>{stageProgress}%</span></div><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div className={`h-full rounded-full ${stageDelayed ? "bg-danger" : "bg-accent"}`} style={{ width: `${stageProgress}%` }} /></div></div>}<p className="mt-1 text-[11px] text-muted">{stageToShow ? `${formatDate(stageToShow.startDate ?? stageToShow.endDate)} – ${formatDate(stageToShow.endDate ?? stageToShow.startDate)}${scheduleTotal ? ` · ${scheduleCompleted}/${scheduleTotal} etapas completadas` : ""}` : ""}</p></div>
     </div>
+    <div className="mt-3"><div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold text-ink">Seguimiento de desarrollo por módulo</h4><p className="mt-1 text-xs text-subtle">Las pendientes son actividades que aún no están en la última etapa de desarrollo.</p></div></div>{modules.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{modules.map((module) => <ModuleKpi key={module.id} module={module} activities={developmentActivities} stages={stages} />)}</div> : <p className="mt-3 rounded-lg border border-dashed border-line px-3 py-3 text-xs text-subtle">Crea módulos desde la configuración del proyecto para ver estos indicadores.</p>}</div>
   </section>;
 }

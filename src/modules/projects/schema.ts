@@ -14,13 +14,20 @@ export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "ema
 export const documentationStatus = pgEnum("documentation_status", ["draft", "in_review", "approved", "archived"]);
 export const developmentStage = pgTable("development_stage", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull().unique(),
+  companyId: uuid("company_id").references(() => company.id),
+  name: text("name").notNull(),
   color: text("color").notNull().default("neutral"),
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  isTerminal: boolean("is_terminal").notNull().default(false),
+  isCancelled: boolean("is_cancelled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("development_stage_company_name_uidx").on(table.companyId, table.name),
+  uniqueIndex("development_stage_company_terminal_uidx").on(table.companyId).where(sql`${table.isTerminal} = true`),
+  uniqueIndex("development_stage_company_cancelled_uidx").on(table.companyId).where(sql`${table.isCancelled} = true`),
+]);
 
 export const project = pgTable("project", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -91,6 +98,7 @@ export const activity = pgTable("activity", {
   moduleId: uuid("module_id").references(() => projectModule.id),
   type: activityType("type").notNull().default("task"),
   status: activityStatus("status").notNull().default("pending"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   priority: integer("priority").notNull().default(3),
   activityDate: date("activity_date"),
   dueDate: date("due_date"),

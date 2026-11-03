@@ -10,6 +10,8 @@ import { ViewDetailsDialog } from "../view-details-dialog";
 import { Button } from "@/components/ui/button";
 
 type ManagedUser = { id: string; name: string; email: string; role?: string | null; banned?: boolean | null };
+type CompanyRoleAssignment = { roleId: string; roleName: string };
+type AssignableRole = { id: string; name: string };
 
 function temporaryPassword() {
   const bytes = new Uint8Array(24);
@@ -17,7 +19,7 @@ function temporaryPassword() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { currentUserId: string; initialUsers: ManagedUser[]; initialTotal: number }) {
+export function UsersPanel({ currentUserId, initialUsers, initialTotal, eligibleUserIds, roleAssignments: initialRoleAssignments, assignableRoles }: { currentUserId: string; initialUsers: ManagedUser[]; initialTotal: number; eligibleUserIds: string[]; roleAssignments: Record<string, CompanyRoleAssignment>; assignableRoles: AssignableRole[] }) {
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
   const [createOpen, setCreateOpen] = useState(false);
   const [total, setTotal] = useState(initialTotal);
@@ -40,6 +42,11 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [editName, setEditName] = useState("");
   const [editPending, setEditPending] = useState(false);
+  const [assigningUser, setAssigningUser] = useState<ManagedUser | null>(null);
+  const [companyRoleId, setCompanyRoleId] = useState("");
+  const [rolePending, setRolePending] = useState(false);
+  const [roleAssignments, setRoleAssignments] = useState(initialRoleAssignments);
+  const eligibleIds = new Set(eligibleUserIds);
   const loadRequestId = useRef(0);
 
   const load = useCallback(async (nextPage: number, nextPageSize: number, nextSearch: string) => {
@@ -149,6 +156,40 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
     }
   }
 
+  async function saveCompanyRole(event: FormEvent) {
+    event.preventDefault();
+    if (!assigningUser || rolePending) return;
+    setRolePending(true);
+    setAccountMessage("");
+    try {
+      const response = await fetch(`/api/users/${assigningUser.id}/role`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roleId: companyRoleId || null }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setAccountMessageIsError(true);
+        setAccountMessage(result?.error ?? "No se pudo asignar el rol de empresa.");
+        return;
+      }
+      setRoleAssignments((current) => {
+        const next = { ...current };
+        if (result.roleId) next[assigningUser.id] = { roleId: result.roleId, roleName: result.roleName };
+        else delete next[assigningUser.id];
+        return next;
+      });
+      setAccountMessageIsError(false);
+      setAccountMessage("Rol de empresa actualizado.");
+      setAssigningUser(null);
+    } catch {
+      setAccountMessageIsError(true);
+      setAccountMessage("No se pudo conectar para asignar el rol.");
+    } finally {
+      setRolePending(false);
+    }
+  }
+
   async function setUserStatus(user: ManagedUser, active: boolean) {
     if (user.id === currentUserId || pendingUserId) return;
     if (!active && !window.confirm(`¿Desactivar la cuenta de ${user.name}? Se cerrarán sus sesiones.`)) return;
@@ -199,11 +240,12 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
   const columns: TableColumn<ManagedUser>[] = [
     { key: "name", label: "Nombre", className: "w-[22%]", render: (user) => <span className="font-semibold text-ink">{user.name} {user.id === currentUserId && "(tú)"}</span> },
     { key: "email", label: "Correo", className: "w-[30%]", render: (user) => <span className="break-all">{user.email}</span> },
-    { key: "role", label: "Rol", className: "w-[18%]", render: (user) => user.role === "admin" ? "Administrador" : "Usuario" },
+    { key: "role", label: "Rol en empresa", className: "w-[18%]", render: (user) => user.role === "admin" ? "Administrador" : roleAssignments[user.id]?.roleName ?? "Sin rol" },
     { key: "status", label: "Estado", className: "w-[12%]", render: (user) => user.banned ? "Desactivado" : "Activo" },
     { key: "actions", label: "Acciones", className: "w-[18%]", render: (user) => <RowActions label={user.name} actions={[
       { label: "Ver detalle", onSelect: () => setSelectedUser(user) },
       { label: "Editar", onSelect: () => { setEditingUser(user); setEditName(user.name); } },
+      ...(user.role !== "admin" && eligibleIds.has(user.id) ? [{ label: "Asignar rol de empresa", onSelect: () => { setAssigningUser(user); setCompanyRoleId(roleAssignments[user.id]?.roleId ?? ""); } }] : []),
       ...(user.id === currentUserId ? [] : [{ label: user.banned ? "Reactivar" : "Desactivar", tone: user.banned ? "default" as const : "danger" as const, onSelect: () => void toggle(user) }]),
     ]} /> },
   ];
@@ -276,6 +318,19 @@ export function UsersPanel({ currentUserId, initialUsers, initialTotal }: { curr
             {editingUser.id === currentUserId && <span className="mt-1 block text-xs text-muted">No puedes desactivar tu propia cuenta.</span>}
           </label>
           <Button variant="primary" loading={editPending}>{editPending ? "Guardando…" : "Guardar cambios"}</Button>
+        </form>}
+      </CreateDialog>
+      <CreateDialog title="Asignar rol de empresa" triggerLabel="Asignar rol" showTrigger={false} open={assigningUser !== null} onOpenChange={(open) => { if (!open) setAssigningUser(null); }} busy={rolePending}>
+        {assigningUser && <form onSubmit={saveCompanyRole} className="space-y-4">
+          <p className="text-sm text-muted">El rol controla qué módulos y vistas puede consultar {assigningUser.name} en la empresa activa.</p>
+          <label className="block text-sm font-medium">Rol
+            <select value={companyRoleId} onChange={(event) => setCompanyRoleId(event.target.value)} className="ui-field mt-1 block">
+              <option value="">Sin rol asignado</option>
+              {assignableRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+            </select>
+          </label>
+          {!assignableRoles.length && <p className="text-xs text-muted">Primero crea un rol y configura sus permisos.</p>}
+          <Button variant="primary" loading={rolePending}>{rolePending ? "Guardando…" : "Guardar asignación"}</Button>
         </form>}
       </CreateDialog>
     </section>

@@ -1,14 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { requireAdmin } from "@/lib/require-session";
+import { notFound } from "next/navigation";
+import { requireReadySession } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
+import { hasModuleAccess } from "@/modules/access/permissions";
 import { auditEvent } from "@/modules/audit/schema";
 import { user } from "@/db/auth-schema";
 import { AuditPanel, type AuditRow } from "./audit-panel";
 
 export default async function AuditPage() {
-  const session = await requireAdmin();
+  const session = await requireReadySession();
   const company = await activeCompanyForPage(session.user.id);
+  if (!await hasModuleAccess(session.user.id, company.id, "audit", session.user.role)) notFound();
   const events = await db.select({
     id: auditEvent.id,
     entityType: auditEvent.entityType,

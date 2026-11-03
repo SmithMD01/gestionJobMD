@@ -23,7 +23,7 @@ export function Sidebar({ role, twoFactorEnabled, moduleAccess, userName, userEm
   const [logoExpanded, setLogoExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settingsOpenOverride, setSettingsOpenOverride] = useState<boolean | null>(null);
-  const settingsOpen = settingsOpenOverride ?? (pathname === "/settings" || pathname.startsWith("/calendar-monitor"));
+  const settingsOpen = settingsOpenOverride ?? (pathname.startsWith("/settings") || pathname.startsWith("/calendar-monitor"));
   const workspaceReady = role !== "admin" || !!twoFactorEnabled;
   const canAccess = (key: ModulePermissionKey) => workspaceReady && !!moduleAccess?.[key];
 
@@ -63,15 +63,18 @@ export function Sidebar({ role, twoFactorEnabled, moduleAccess, userName, userEm
   }
 
   function settingsDisclosure() {
-    const active = pathname === "/settings" || pathname.startsWith("/calendar-monitor");
+    const active = pathname.startsWith("/settings") || pathname.startsWith("/calendar-monitor");
     const showCalendarUsage = role === "admin" && !!twoFactorEnabled && canAccess("settings.calendar-usage");
+    const showPipeline = canAccess("settings.pipeline");
     return <div key="/settings" className="space-y-0.5">
       <Button type="button" variant="sidebar" onClick={() => setSettingsOpenOverride(!settingsOpen)} aria-expanded={settingsOpen} aria-controls="sidebar-settings-submodules" aria-label={collapsed ? "Configuración" : undefined} title={collapsed ? "Configuración" : undefined} className={`mx-1 !w-[calc(100%-0.5rem)] rounded-lg px-2.5 text-xs font-medium ${collapsed ? "md:!w-auto md:justify-center md:px-0" : ""} ${active ? "ui-button-sidebar-active" : ""}`}>
         <UiIcon name="settings" className="h-[18px] w-[18px] shrink-0" />
         {!collapsed && <><span className="min-w-0 flex-1 truncate text-left">Configuración</span><UiIcon name="chevronDown" className={`h-3.5 w-3.5 shrink-0 transition-transform ${settingsOpen ? "rotate-180" : ""}`} /></>}
       </Button>
       {settingsOpen && <div id="sidebar-settings-submodules" className="space-y-0.5 pl-3">
-        {showCalendarUsage ? <ButtonLink href="/calendar-monitor" variant="sidebar" size="compact" onClick={() => { setSettingsOpenOverride(null); setMobileOpen(false); }} aria-current={pathname === "/calendar-monitor" ? "page" : undefined} aria-label={collapsed ? "Consumo de calendario" : undefined} title={collapsed ? "Consumo de calendario" : undefined} className={`!w-full justify-start gap-2 rounded-lg px-2.5 text-[11px] ${collapsed ? "md:!w-auto md:justify-center md:px-0" : ""} ${pathname === "/calendar-monitor" ? "ui-button-sidebar-active" : ""}`}><UiIcon name="calendar" className="h-4 w-4 shrink-0" />{!collapsed && <span className="truncate">Consumo de calendario</span>}</ButtonLink> : <p className="px-3 py-1 text-[10px] text-subtle">Sin submódulos disponibles</p>}
+        {showPipeline && <ButtonLink href="/settings/pipeline" variant="sidebar" size="compact" onClick={() => { setSettingsOpenOverride(null); setMobileOpen(false); }} aria-current={pathname === "/settings/pipeline" ? "page" : undefined} className={`!w-full justify-start gap-2 rounded-lg px-2.5 text-[11px] ${collapsed ? "md:!w-auto md:justify-center md:px-0" : ""} ${pathname === "/settings/pipeline" ? "ui-button-sidebar-active" : ""}`}><UiIcon name="projects" className="h-4 w-4 shrink-0" />{!collapsed && <span className="truncate">Pipeline de desarrollo</span>}</ButtonLink>}
+        {showCalendarUsage && <ButtonLink href="/calendar-monitor" variant="sidebar" size="compact" onClick={() => { setSettingsOpenOverride(null); setMobileOpen(false); }} aria-current={pathname === "/calendar-monitor" ? "page" : undefined} aria-label={collapsed ? "Consumo de calendario" : undefined} title={collapsed ? "Consumo de calendario" : undefined} className={`!w-full justify-start gap-2 rounded-lg px-2.5 text-[11px] ${collapsed ? "md:!w-auto md:justify-center md:px-0" : ""} ${pathname === "/calendar-monitor" ? "ui-button-sidebar-active" : ""}`}><UiIcon name="calendar" className="h-4 w-4 shrink-0" />{!collapsed && <span className="truncate">Consumo de calendario</span>}</ButtonLink>}
+        {!showPipeline && !showCalendarUsage && <p className="px-3 py-1 text-[10px] text-subtle">Sin submódulos disponibles</p>}
       </div>}
     </div>;
   }

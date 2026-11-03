@@ -34,7 +34,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const [previous] = await db.select().from(appRole).where(and(eq(appRole.id, id), eq(appRole.companyId, company.id)));
   if (!previous) return Response.json({ error: "Rol no encontrado" }, { status: 404 });
 
-  const normalized = new Set(normalizeModuleKeys(parsed.data.moduleKeys));
+  const normalized = new Set(normalizeModuleKeys(parsed.data.moduleKeys.filter((key) =>
+    MODULE_CATALOG_BY_KEY[key as ModulePermissionKey]?.adminOnly !== true || previous.key === "admin"
+  )));
   for (const key of ADMIN_REQUIRED_MODULE_KEYS) {
     if (previous.key === "admin") normalized.add(key);
   }

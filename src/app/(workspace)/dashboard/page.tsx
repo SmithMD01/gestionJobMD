@@ -1,8 +1,13 @@
 import { requireReadySession } from "@/lib/require-session";
 import { companiesForUser } from "@/modules/companies/context";
+import { notFound } from "next/navigation";
+import { activeCompanyForPage } from "@/modules/companies/context";
+import { hasModuleAccess } from "@/modules/access/permissions";
 
 export default async function DashboardPage() {
   const session = await requireReadySession();
+  const company = await activeCompanyForPage(session.user.id);
+  if (!await hasModuleAccess(session.user.id, company.id, "home", session.user.role)) notFound();
   const companies = await companiesForUser(session.user.id);
 
   return (

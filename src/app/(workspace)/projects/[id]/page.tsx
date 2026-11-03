@@ -4,8 +4,9 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { companyMember, companyTeamMember } from "@/modules/companies/schema";
 import { user } from "@/db/auth-schema";
-import { requireAdmin } from "@/lib/require-session";
+import { requireReadySession } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
+import { hasModuleAccess } from "@/modules/access/permissions";
 import { activity, developmentStage, project, projectContact, projectDocument, projectModule, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
 import { activityResponsiblesInCompany } from "@/modules/projects/access";
 import { ProjectSections } from "../project-sections";
@@ -15,18 +16,29 @@ import { ProjectEditDialogButton } from "../project-edit-dialog-button";
 import { projectStatusLabel } from "@/modules/projects/constants";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireReadySession();
   const company = await activeCompanyForPage(session.user.id);
+  const canOpenProject = await hasModuleAccess(session.user.id, company.id, "projects", session.user.role);
+  if (!canOpenProject) notFound();
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
   const [item] = await db.select().from(project).where(and(eq(project.id, id), eq(project.companyId, company.id)));
   if (!item) notFound();
+  const projectViews = [
+    ["information", "projects.information"], ["activities", "projects.activities"], ["development", "projects.development"],
+    ["configuration", "projects.configuration"], ["documentation", "projects.documentation"], ["qa", "projects.qa"],
+    ["schedule", "projects.schedule"], ["benchwork", "projects.benchwork"],
+  ] as const;
+  const allowedViews = (await Promise.all(projectViews.map(async ([view, permission]) =>
+    await hasModuleAccess(session.user.id, company.id, permission, session.user.role) ? view : null
+  ))).filter((view): view is (typeof projectViews)[number][0] => view !== null);
+  if (!allowedViews.length) notFound();
   const [contacts, activities, developmentStages, teamMembers, modules, scheduleRows, documents] = await Promise.all([
     db.select({ id: projectContact.id, name: projectContact.name, email: projectContact.email, phone: projectContact.phone })
       .from(projectContact).where(eq(projectContact.projectId, id)).orderBy(projectContact.name),
     db.select().from(activity).where(eq(activity.projectId, id)).orderBy(activity.createdAt),
-    db.select({ id: developmentStage.id, name: developmentStage.name, color: developmentStage.color }).from(developmentStage).where(eq(developmentStage.isActive, true)).orderBy(developmentStage.sortOrder),
+    db.select({ id: developmentStage.id, name: developmentStage.name, color: developmentStage.color, isTerminal: developmentStage.isTerminal, isCancelled: developmentStage.isCancelled }).from(developmentStage).where(and(eq(developmentStage.companyId, company.id), eq(developmentStage.isActive, true))).orderBy(developmentStage.sortOrder),
     db.select({ id: companyTeamMember.id, name: companyTeamMember.name, role: companyTeamMember.role }).from(companyTeamMember)
       .leftJoin(companyMember, and(eq(companyMember.companyId, companyTeamMember.companyId), eq(companyMember.userId, companyTeamMember.userId)))
       .leftJoin(user, eq(user.id, companyTeamMember.userId))
@@ -49,14 +61,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <h1 className="mt-1 break-words text-2xl font-semibold text-ink sm:text-3xl">{item.name}</h1>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          {company.isActive ? <><ProjectStatusSelect project={{ id: item.id, status: item.status }} />
+          {company.isActive && session.user.role === "admin" ? <><ProjectStatusSelect project={{ id: item.id, status: item.status }} />
           <ProjectEditDialogButton project={{ id: item.id, name: item.name, objective: item.objective, description: item.description, status: item.status, startDate: item.startDate, endDate: item.endDate }} /></> : <span className="rounded-lg border border-line bg-canvas px-3 py-2 text-xs text-muted">{projectStatusLabel[item.status]}</span>}
         </div>
       </header>
 
       {!company.isActive && <p role="status" className="mt-5 rounded-lg border border-line bg-canvas px-4 py-3 text-sm text-muted">Esta empresa está inactiva. El proyecto está disponible solo para consulta.</p>}
 
-      <ProjectSections projectId={item.id} readOnly={!company.isActive} contacts={contacts} activities={activitiesWithResponsibles} developmentStages={developmentStages} teamMembers={teamMembers} modules={modules} documents={documents} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder }))} />
+      <ProjectSections projectId={item.id} allowedSections={allowedViews} readOnly={!company.isActive || session.user.role !== "admin"} contacts={allowedViews.includes("configuration") ? contacts : []} activities={allowedViews.some((view) => ["information", "activities", "development", "configuration"].includes(view)) ? activitiesWithResponsibles : []} developmentStages={allowedViews.some((view) => ["information", "development", "configuration"].includes(view)) ? developmentStages : []} teamMembers={allowedViews.some((view) => ["activities", "development"].includes(view)) ? teamMembers : []} modules={allowedViews.some((view) => ["development", "configuration"].includes(view)) ? modules : []} documents={allowedViews.includes("documentation") ? documents : []} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={allowedViews.some((view) => ["information", "schedule"].includes(view)) && schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={allowedViews.some((view) => ["information", "schedule"].includes(view)) ? scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder })) : []} />
 
     </main>
   );

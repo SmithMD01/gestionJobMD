@@ -4,7 +4,7 @@ import { ProjectContacts, type ProjectContact } from "./project-contacts";
 import { ProjectModules, type ProjectModule } from "./project-modules";
 import type { ProjectActivity } from "./project-activities";
 
-export function ProjectConfiguration({ projectId, readOnly = false, contacts, modules, activities, stages, onModulesChange }: { projectId: string; readOnly?: boolean; contacts: ProjectContact[]; modules: ProjectModule[]; activities: ProjectActivity[]; stages: { id: string; name: string; color: string }[]; onModulesChange: (modules: ProjectModule[]) => void }) {
+export function ProjectConfiguration({ projectId, readOnly = false, contacts, modules, activities, stages, onModulesChange }: { projectId: string; readOnly?: boolean; contacts: ProjectContact[]; modules: ProjectModule[]; activities: ProjectActivity[]; stages: { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean }[]; onModulesChange: (modules: ProjectModule[]) => void }) {
   return <div className="space-y-4">
     <ProjectContacts projectId={projectId} readOnly={readOnly} initialContacts={contacts} />
     <details open className="group/module-config rounded-lg border border-line bg-canvas">

@@ -27,25 +27,28 @@ function ComingSoon({ children }: { children: string }) {
   return <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5"><p className="text-sm leading-6 text-muted">{children}</p></div>;
 }
 
-export function ProjectSections({ projectId, readOnly = false, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; readOnly?: boolean; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
-  const [active, setActive] = useState<(typeof sections)[number]["id"]>("information");
+type SectionId = (typeof sections)[number]["id"];
+
+export function ProjectSections({ projectId, readOnly = false, allowedSections, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; readOnly?: boolean; allowedSections?: SectionId[]; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
+  const visibleSections = sections.filter((section) => !allowedSections || allowedSections.includes(section.id));
+  const [active, setActive] = useState<SectionId>(visibleSections[0]?.id ?? "information");
   const [projectModules, setProjectModules] = useState(modules);
 
   return (
     <section className="mt-6" aria-label="Secciones del proyecto">
       <div role="tablist" aria-label="Secciones del proyecto" onKeyDown={(event) => {
-        const currentIndex = sections.findIndex((section) => section.id === active);
-        const nextIndex = event.key === "ArrowRight" ? (currentIndex + 1) % sections.length
-          : event.key === "ArrowLeft" ? (currentIndex - 1 + sections.length) % sections.length
-            : event.key === "Home" ? 0 : event.key === "End" ? sections.length - 1 : -1;
+        const currentIndex = visibleSections.findIndex((section) => section.id === active);
+        const nextIndex = event.key === "ArrowRight" ? (currentIndex + 1) % visibleSections.length
+          : event.key === "ArrowLeft" ? (currentIndex - 1 + visibleSections.length) % visibleSections.length
+            : event.key === "Home" ? 0 : event.key === "End" ? visibleSections.length - 1 : -1;
         if (nextIndex >= 0) {
           event.preventDefault();
-          const next = sections[nextIndex];
+          const next = visibleSections[nextIndex];
           setActive(next.id);
           document.getElementById(`project-tab-${next.id}`)?.focus();
         }
       }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 xl:grid-cols-8">
-        {sections.map((section) => <Button
+        {visibleSections.map((section) => <Button
           key={section.id}
           variant={active === section.id ? "primary" : "secondary"}
           size="compact"
@@ -60,7 +63,7 @@ export function ProjectSections({ projectId, readOnly = false, contacts, activit
         >{section.label}</Button>)}
       </div>
 
-      {sections.map((section) => <div key={section.id} id={`project-panel-${section.id}`} role="tabpanel" aria-labelledby={`project-tab-${section.id}`} tabIndex={0} hidden={active !== section.id} className="mt-3 rounded-xl border border-line bg-surface p-5 sm:p-6">
+      {visibleSections.map((section) => <div key={section.id} id={`project-panel-${section.id}`} role="tabpanel" aria-labelledby={`project-tab-${section.id}`} tabIndex={0} hidden={active !== section.id} className="mt-3 rounded-xl border border-line bg-surface p-5 sm:p-6">
         {section.id === "information" && <>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)]">
             <section aria-labelledby="project-summary" className="rounded-xl border border-line bg-canvas p-5 sm:p-6"><h2 id="project-summary" className="text-base font-semibold">Objetivo y descripción</h2><dl className="mt-4 space-y-4"><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Objetivo</dt><dd className="mt-1.5 whitespace-pre-wrap text-xs leading-5 text-ink">{projectObjective}</dd></div><div><dt className="text-xs font-medium uppercase tracking-wide text-subtle">Descripción</dt><dd className={`mt-1.5 whitespace-pre-wrap text-xs leading-5 ${projectDescription ? "text-ink" : "text-muted"}`}>{projectDescription || "Aún no se ha añadido una descripción."}</dd></div></dl></section>

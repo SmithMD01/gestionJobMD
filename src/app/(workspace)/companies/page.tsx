@@ -2,9 +2,14 @@ import { requireReadySession } from "@/lib/require-session";
 import { cookies } from "next/headers";
 import { ACTIVE_COMPANY_COOKIE, companiesForManagement, companiesForUser, membersForCompanies, usersForCompanyAssignment } from "@/modules/companies/context";
 import { CompaniesPanel } from "./companies-panel";
+import { notFound } from "next/navigation";
+import { hasModuleAccess } from "@/modules/access/permissions";
+import { activeCompanyForPage } from "@/modules/companies/context";
 
 export default async function CompaniesPage() {
   const session = await requireReadySession();
+  const activeCompany = await activeCompanyForPage(session.user.id);
+  if (!await hasModuleAccess(session.user.id, activeCompany.id, "companies", session.user.role)) notFound();
   const companies = await companiesForManagement(session.user.id);
   const selectableCompanies = await companiesForUser(session.user.id);
   const canManageCompanies = session.user.role === "admin" && !!session.user.twoFactorEnabled;

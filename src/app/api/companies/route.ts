@@ -10,6 +10,8 @@ import { auditEvent } from "@/modules/audit/schema";
 import { createdDetail } from "@/modules/audit/details";
 import { appRole, roleModulePermission } from "@/modules/access/schema";
 import { MODULE_CATALOG } from "@/modules/access/catalog";
+import { developmentStage } from "@/modules/projects/schema";
+import { DEFAULT_DEVELOPMENT_STAGES } from "@/modules/projects/pipeline";
 
 const companyInput = z.object({ name: z.string().trim().min(1).max(120), memberIds: z.array(z.string().min(1)).max(500).default([]) });
 
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
     if (adminRole) {
       await tx.insert(roleModulePermission).values(MODULE_CATALOG.map((entry) => ({ roleId: adminRole.id, moduleKey: entry.key, canAccess: true, updatedBy: session.user.id })));
     }
+    await tx.insert(developmentStage).values(DEFAULT_DEVELOPMENT_STAGES.map((stage) => ({ companyId: newCompany.id, ...stage })));
     await tx.insert(auditEvent).values({ companyId: newCompany.id, actorUserId: session.user.id, entityType: "company", entityId: newCompany.id, entityName: newCompany.name, action: "company.created", changeDetail: createdDetail("la empresa", newCompany.name) });
     return newCompany;
   });
