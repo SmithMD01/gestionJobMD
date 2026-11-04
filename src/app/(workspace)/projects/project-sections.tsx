@@ -9,6 +9,7 @@ import { ProjectFollowUp } from "./project-follow-up";
 import type { ProjectModule } from "./project-modules";
 import { ProjectConfiguration } from "./project-configuration";
 import { ProjectDocumentation, type ProjectDocument } from "./project-documentation";
+import { ProjectDependencies, type ProjectDependency } from "./project-dependencies";
 import { formatProjectDate } from "@/modules/projects/constants";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ const sections = [
   { id: "development", label: "Desarrollo" },
   { id: "configuration", label: "Configuración proyecto" },
   { id: "documentation", label: "Documentación" },
+  { id: "dependencies", label: "Dependencias" },
   { id: "qa", label: "Pruebas QA" },
   { id: "schedule", label: "Cronograma" },
   { id: "benchwork", label: "Benchwork" },
@@ -29,7 +31,7 @@ function ComingSoon({ children }: { children: string }) {
 
 type SectionId = (typeof sections)[number]["id"];
 
-export function ProjectSections({ projectId, readOnly = false, allowedSections, contacts, activities, developmentStages, teamMembers, modules, documents, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; readOnly?: boolean; allowedSections?: SectionId[]; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
+export function ProjectSections({ projectId, readOnly = false, allowedSections, contacts, activities, developmentStages, teamMembers, modules, documents, dependencies, projectObjective, projectDescription, projectCreatedAt, projectUpdatedAt, projectStatus, schedule, scheduleItems, projectStartDate, projectEndDate }: { projectId: string; readOnly?: boolean; allowedSections?: SectionId[]; contacts: ProjectContact[]; activities: ProjectActivity[]; developmentStages: { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean }[]; teamMembers: { id: string; name: string; role: string | null }[]; modules: ProjectModule[]; documents: ProjectDocument[]; dependencies: ProjectDependency[]; projectObjective: string; projectDescription: string; projectCreatedAt: Date; projectUpdatedAt: Date; projectStatus: "planned" | "active" | "paused" | "completed" | "cancelled"; schedule: ProjectScheduleType | null; scheduleItems: ProjectScheduleItemType[]; projectStartDate: string | null; projectEndDate: string | null }) {
   const visibleSections = sections.filter((section) => !allowedSections || allowedSections.includes(section.id));
   const [active, setActive] = useState<SectionId>(visibleSections[0]?.id ?? "information");
   const [projectModules, setProjectModules] = useState(modules);
@@ -47,7 +49,7 @@ export function ProjectSections({ projectId, readOnly = false, allowedSections, 
           setActive(next.id);
           document.getElementById(`project-tab-${next.id}`)?.focus();
         }
-      }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 xl:grid-cols-8">
+      }} className="grid grid-cols-2 gap-2 pb-1 sm:grid-cols-4 xl:grid-cols-9">
         {visibleSections.map((section) => <Button
           key={section.id}
           variant={active === section.id ? "primary" : "secondary"}
@@ -75,6 +77,7 @@ export function ProjectSections({ projectId, readOnly = false, allowedSections, 
         {section.id === "development" && <ProjectDevelopment projectId={projectId} readOnly={readOnly} activities={activities} stages={developmentStages} teamMembers={teamMembers} modules={projectModules} />}
         {section.id === "configuration" && <ProjectConfiguration projectId={projectId} readOnly={readOnly} contacts={contacts} modules={projectModules} activities={activities} stages={developmentStages} onModulesChange={setProjectModules} />}
         {section.id === "documentation" && <ProjectDocumentation projectId={projectId} readOnly={readOnly} initialDocuments={documents} />}
+        {section.id === "dependencies" && <ProjectDependencies projectId={projectId} readOnly={readOnly} initialDependencies={dependencies} />}
         {section.id === "qa" && <>
           <h2 className="text-base font-semibold">Pruebas QA</h2>
           <p className="mt-2 text-sm text-muted">Casos de prueba, resultados y evidencias vinculados al proyecto.</p>

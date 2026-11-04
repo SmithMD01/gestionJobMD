@@ -9,6 +9,7 @@ export type ModulePermissionKey =
   | "projects.qa"
   | "projects.schedule"
   | "projects.benchwork"
+  | "projects.dependencies"
   | "activities"
   | "companies"
   | "users"
@@ -47,6 +48,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
   { key: "projects.qa", label: "Pruebas QA", description: "Casos y seguimiento de pruebas de calidad.", group: "projects", parentKey: "projects", icon: "qa" },
   { key: "projects.schedule", label: "Cronograma", description: "Tabla y vista Gantt del cronograma del proyecto.", group: "projects", parentKey: "projects", icon: "schedule" },
   { key: "projects.benchwork", label: "Benchwork", description: "Espacio de documentación asistida y trabajo técnico.", group: "projects", parentKey: "projects", icon: "benchwork" },
+  { key: "projects.dependencies", label: "Dependencias", description: "Consultas, dependencias, respuestas y confirmaciones de la fábrica.", group: "projects", parentKey: "projects", icon: "activity" },
   { key: "activities", label: "Actividades", description: "Vista centralizada de actividades de la empresa.", group: "principal", href: "/activities", icon: "activity" },
   { key: "companies", label: "Empresas", description: "Empresas y configuración de sus integrantes.", group: "administration", href: "/companies", icon: "companies" },
   { key: "users", label: "Usuarios", description: "Cuentas, estados y asignaciones de usuarios. Solo administradores.", group: "administration", href: "/users", icon: "users", requiredForAdmin: true, adminOnly: true },

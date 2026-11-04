@@ -12,6 +12,8 @@ export const activityStatus = pgEnum("activity_status", ["to_validate", "pending
 export const activityType = pgEnum("activity_type", ["task", "meeting", "coordination", "follow_up", "development", "other"]);
 export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "email", "meeting", "automation"]);
 export const documentationStatus = pgEnum("documentation_status", ["draft", "in_review", "approved", "archived"]);
+export const projectDependencyStatus = pgEnum("project_dependency_status", ["pending", "answered", "awaiting_confirmation", "resolved"]);
+export const projectDependencyCategory = pgEnum("project_dependency_category", ["document", "workflow", "business_rule", "data", "other"]);
 export const developmentStage = pgTable("development_stage", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").references(() => company.id),
@@ -64,6 +66,31 @@ export const projectContact = pgTable("project_contact", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const projectDependency = pgTable("project_dependency", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => project.id),
+  externalCode: text("external_code"),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  category: projectDependencyCategory("category").notNull().default("other"),
+  status: projectDependencyStatus("status").notNull().default("pending"),
+  response: text("response").notNull().default(""),
+  dueDate: date("due_date"),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("project_dependency_code_uidx").on(table.projectId, table.externalCode).where(sql`${table.externalCode} IS NOT NULL`),
+]);
+
+export const projectDependencyRelation = pgTable("project_dependency_relation", {
+  dependencyId: uuid("dependency_id").notNull().references(() => projectDependency.id, { onDelete: "cascade" }),
+  relatedDependencyId: uuid("related_dependency_id").notNull().references(() => projectDependency.id, { onDelete: "cascade" }),
+}, (table) => [primaryKey({ columns: [table.dependencyId, table.relatedDependencyId] })]);
 
 export const projectDocument = pgTable("project_document", {
   id: uuid("id").defaultRandom().primaryKey(),

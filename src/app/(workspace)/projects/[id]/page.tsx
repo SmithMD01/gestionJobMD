@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -7,7 +7,7 @@ import { user } from "@/db/auth-schema";
 import { requireReadySession } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
 import { hasModuleAccess } from "@/modules/access/permissions";
-import { activity, developmentStage, project, projectContact, projectDocument, projectModule, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
+import { activity, developmentStage, project, projectContact, projectDependency, projectDependencyRelation, projectDocument, projectModule, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
 import { activityResponsiblesInCompany } from "@/modules/projects/access";
 import { ProjectSections } from "../project-sections";
 import type { ProjectScheduleItem as ProjectScheduleItemType } from "../project-schedule";
@@ -27,14 +27,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   if (!item) notFound();
   const projectViews = [
     ["information", "projects.information"], ["activities", "projects.activities"], ["development", "projects.development"],
-    ["configuration", "projects.configuration"], ["documentation", "projects.documentation"], ["qa", "projects.qa"],
+    ["configuration", "projects.configuration"], ["documentation", "projects.documentation"], ["dependencies", "projects.dependencies"], ["qa", "projects.qa"],
     ["schedule", "projects.schedule"], ["benchwork", "projects.benchwork"],
   ] as const;
   const allowedViews = (await Promise.all(projectViews.map(async ([view, permission]) =>
     await hasModuleAccess(session.user.id, company.id, permission, session.user.role) ? view : null
   ))).filter((view): view is (typeof projectViews)[number][0] => view !== null);
   if (!allowedViews.length) notFound();
-  const [contacts, activities, developmentStages, teamMembers, modules, scheduleRows, documents] = await Promise.all([
+  const [contacts, activities, developmentStages, teamMembers, modules, scheduleRows, documents, dependencies] = await Promise.all([
     db.select({ id: projectContact.id, name: projectContact.name, email: projectContact.email, phone: projectContact.phone })
       .from(projectContact).where(eq(projectContact.projectId, id)).orderBy(projectContact.name),
     db.select().from(activity).where(eq(activity.projectId, id)).orderBy(activity.createdAt),
@@ -46,7 +46,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     db.select().from(projectModule).where(and(eq(projectModule.projectId, id), eq(projectModule.isActive, true))).orderBy(projectModule.sortOrder, projectModule.name),
     db.select().from(projectSchedule).where(eq(projectSchedule.projectId, id)),
     db.select({ id: projectDocument.id, projectId: projectDocument.projectId, groupId: projectDocument.groupId, typeId: projectDocument.typeId, title: projectDocument.title, version: projectDocument.version, status: projectDocument.status, isFinal: projectDocument.isFinal, fileName: projectDocument.fileName, mimeType: projectDocument.mimeType, fileSize: projectDocument.fileSize, notes: projectDocument.notes, createdBy: projectDocument.createdBy, createdAt: projectDocument.createdAt, updatedAt: projectDocument.updatedAt }).from(projectDocument).where(eq(projectDocument.projectId, id)).orderBy(desc(projectDocument.updatedAt), desc(projectDocument.version)),
+    allowedViews.includes("dependencies") ? db.select().from(projectDependency).where(eq(projectDependency.projectId, id)).orderBy(projectDependency.sortOrder, projectDependency.createdAt) : Promise.resolve([]),
   ]);
+  const dependencyIds = dependencies.map((dependency) => dependency.id);
+  const dependencyRelations = dependencyIds.length ? await db.select().from(projectDependencyRelation).where(inArray(projectDependencyRelation.dependencyId, dependencyIds)) : [];
+  const dependencyRelationIds = dependencyRelations.reduce<Record<string, string[]>>((map, relation) => {
+    if (dependencies.some((dependency) => dependency.id === relation.dependencyId)) (map[relation.dependencyId] ??= []).push(relation.relatedDependencyId);
+    return map;
+  }, {});
   const activityIds = activities.map((item) => item.id);
   const responsibleByActivity = await activityResponsiblesInCompany(activityIds, company.id);
   const activitiesWithResponsibles = activities.map((item) => ({ ...item, responsibleIds: responsibleByActivity.get(item.id)?.ids ?? [], responsibleNames: responsibleByActivity.get(item.id)?.names ?? [] }));
@@ -68,7 +75,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
       {!company.isActive && <p role="status" className="mt-5 rounded-lg border border-line bg-canvas px-4 py-3 text-sm text-muted">Esta empresa está inactiva. El proyecto está disponible solo para consulta.</p>}
 
-      <ProjectSections projectId={item.id} allowedSections={allowedViews} readOnly={!company.isActive || session.user.role !== "admin"} contacts={allowedViews.includes("configuration") ? contacts : []} activities={allowedViews.some((view) => ["information", "activities", "development", "configuration"].includes(view)) ? activitiesWithResponsibles : []} developmentStages={allowedViews.some((view) => ["information", "development", "configuration"].includes(view)) ? developmentStages : []} teamMembers={allowedViews.some((view) => ["activities", "development"].includes(view)) ? teamMembers : []} modules={allowedViews.some((view) => ["development", "configuration"].includes(view)) ? modules : []} documents={allowedViews.includes("documentation") ? documents : []} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={allowedViews.some((view) => ["information", "schedule"].includes(view)) && schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={allowedViews.some((view) => ["information", "schedule"].includes(view)) ? scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder })) : []} />
+      <ProjectSections projectId={item.id} allowedSections={allowedViews} readOnly={!company.isActive || session.user.role !== "admin"} contacts={allowedViews.includes("configuration") ? contacts : []} activities={allowedViews.some((view) => ["information", "activities", "development", "configuration"].includes(view)) ? activitiesWithResponsibles : []} developmentStages={allowedViews.some((view) => ["information", "development", "configuration"].includes(view)) ? developmentStages : []} teamMembers={allowedViews.some((view) => ["activities", "development"].includes(view)) ? teamMembers : []} modules={allowedViews.some((view) => ["development", "configuration"].includes(view)) ? modules : []} documents={allowedViews.includes("documentation") ? documents : []} dependencies={dependencies.map((dependency) => ({ ...dependency, relatedDependencyIds: dependencyRelationIds[dependency.id] ?? [] }))} projectObjective={item.objective} projectDescription={item.description} projectCreatedAt={item.createdAt} projectUpdatedAt={item.updatedAt} projectStatus={item.status} projectStartDate={item.startDate} projectEndDate={item.endDate} schedule={allowedViews.some((view) => ["information", "schedule"].includes(view)) && schedule ? { id: schedule.id, status: schedule.status, confirmedAt: schedule.confirmedAt?.toISOString() ?? null } : null} scheduleItems={allowedViews.some((view) => ["information", "schedule"].includes(view)) ? scheduleItems.map((row) => ({ id: row.id, title: row.title, description: row.description, kind: row.kind as ProjectScheduleItemType["kind"], color: row.color as ProjectScheduleItemType["color"], status: row.status as ProjectScheduleItemType["status"], startDate: row.startDate, endDate: row.endDate, sortOrder: row.sortOrder })) : []} />
 
     </main>
   );

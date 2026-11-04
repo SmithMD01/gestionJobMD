@@ -42,6 +42,23 @@ export const projectContactInput = z.object({
 
 export type ProjectContactInput = z.infer<typeof projectContactInput>;
 
+export const projectDependencyInput = z.object({
+  externalCode: z.string().trim().max(80).nullable().optional(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5000).default(""),
+  category: z.enum(["document", "workflow", "business_rule", "data", "other"]),
+  status: z.enum(["pending", "answered", "awaiting_confirmation", "resolved"]),
+  response: z.string().trim().max(5000).default(""),
+  dueDate: z.iso.date().nullable(),
+  relatedDependencyIds: z.array(z.uuid()).max(100).default([]),
+}).transform((value) => ({ ...value, externalCode: value.externalCode || null }))
+  .refine((value) => new Set(value.relatedDependencyIds).size === value.relatedDependencyIds.length, {
+    message: "No repitas dependencias relacionadas",
+    path: ["relatedDependencyIds"],
+  });
+
+export type ProjectDependencyInput = z.infer<typeof projectDependencyInput>;
+
 export const activityInput = z.object({
   title: z.string().trim().min(1).max(160),
   developmentStageId: z.uuid().nullable().optional(),
