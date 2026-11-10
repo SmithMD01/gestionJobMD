@@ -49,10 +49,13 @@ export async function notificationsForCompany(companyId: string): Promise<Worksp
   }
 
   for (const [projectId, projectItems] of scheduleByProject) {
-    const currentPhase = projectItems
-      .filter((item) => item.kind === "phase" && item.status !== "completed" && item.startDate && item.endDate && item.startDate <= today && item.endDate >= today)
-      .sort((left, right) => right.startDate!.localeCompare(left.startDate!) || left.sortOrder - right.sortOrder)[0];
-    if (currentPhase) {
+    const currentRows = projectItems
+      .filter((item) => item.status !== "completed" && item.startDate && item.endDate && item.startDate <= today && item.endDate >= today);
+    const currentPhases = (currentRows.some((item) => item.kind === "phase")
+      ? currentRows.filter((item) => item.kind === "phase")
+      : currentRows)
+      .sort((left, right) => left.startDate!.localeCompare(right.startDate!) || left.sortOrder - right.sortOrder);
+    for (const currentPhase of currentPhases) {
       notifications.push({ id: `schedule-current-${currentPhase.id}`, kind: "schedule", title: "Etapa actual del Gantt", source: "gantt", entityName: currentPhase.title, projectName: currentPhase.projectName, priority: null, date: currentPhase.endDate, daysRemaining: daysBetween(today, currentPhase.endDate!), description: currentPhase.description || null, href: `/projects/${projectId}` });
     }
 
@@ -65,5 +68,5 @@ export async function notificationsForCompany(companyId: string): Promise<Worksp
   }
 
   const order: Record<WorkspaceNotification["kind"], number> = { overdue: 0, urgent: 1, schedule: 2, upcoming: 3 };
-  return notifications.toSorted((left, right) => order[left.kind] - order[right.kind] || (left.daysRemaining ?? Number.MAX_SAFE_INTEGER) - (right.daysRemaining ?? Number.MAX_SAFE_INTEGER) || left.entityName.localeCompare(right.entityName)).slice(0, 30);
+  return notifications.toSorted((left, right) => order[left.kind] - order[right.kind] || (left.kind === "schedule" ? Number(!left.id.startsWith("schedule-current-")) - Number(!right.id.startsWith("schedule-current-")) : 0) || (left.daysRemaining ?? Number.MAX_SAFE_INTEGER) - (right.daysRemaining ?? Number.MAX_SAFE_INTEGER) || left.entityName.localeCompare(right.entityName)).slice(0, 100);
 }

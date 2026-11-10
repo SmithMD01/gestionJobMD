@@ -7,7 +7,7 @@ import { notificationsForCompany } from "@/modules/notifications/queries";
 import { moduleAccessForUser } from "@/modules/access/permissions";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { calendarAccount, companyCalendarBinding } from "@/modules/calendar/schema";
+import { calendarAccount, calendarInstanceConfig, companyCalendarBinding } from "@/modules/calendar/schema";
 import { CalendarSyncAgent } from "./calendar/calendar-sync-agent";
 
 export default async function WorkspaceLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -22,13 +22,16 @@ export default async function WorkspaceLayout({ children }: Readonly<{ children:
     activeId ? notificationsForCompany(activeId) : Promise.resolve([]),
     moduleAccessForUser(session.user.id, activeId, session.user.role),
   ]);
-  const [calendarBinding] = activeId ? await db.select({ accountId: companyCalendarBinding.accountId, isEnabled: companyCalendarBinding.isEnabled, showCentralized: companyCalendarBinding.showCentralized })
-    .from(companyCalendarBinding).where(and(eq(companyCalendarBinding.companyId, activeId), eq(companyCalendarBinding.userId, session.user.id))).limit(1) : [];
+  const [[calendarBinding], [calendarConfig]] = await Promise.all([
+    activeId ? db.select({ accountId: companyCalendarBinding.accountId, isEnabled: companyCalendarBinding.isEnabled, showCentralized: companyCalendarBinding.showCentralized })
+      .from(companyCalendarBinding).where(and(eq(companyCalendarBinding.companyId, activeId), eq(companyCalendarBinding.userId, session.user.id))).limit(1) : Promise.resolve([]),
+    db.select({ syncMode: calendarInstanceConfig.syncMode }).from(calendarInstanceConfig).where(eq(calendarInstanceConfig.id, 1)).limit(1),
+  ]);
   const [calendarAccountState] = calendarBinding?.accountId ? await db.select({ status: calendarAccount.status, isActive: calendarAccount.isActive })
     .from(calendarAccount).where(and(eq(calendarAccount.id, calendarBinding.accountId), eq(calendarAccount.userId, session.user.id))).limit(1) : [];
   const canUseCentralized = !!moduleAccess?.["calendar.centralized"] && !!calendarBinding?.showCentralized;
   const canUseCompanyCalendar = !!moduleAccess?.calendar && !!calendarBinding?.isEnabled && calendarAccountState?.status === "connected" && calendarAccountState.isActive;
-  const calendarSyncEnabled = session.user.role !== "admin" || !!session.user.twoFactorEnabled;
+  const calendarSyncEnabled = calendarConfig?.syncMode !== "disabled" && (session.user.role !== "admin" || !!session.user.twoFactorEnabled);
 
   return (
     <div className="min-h-screen md:flex">

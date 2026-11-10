@@ -17,11 +17,14 @@ export default async function CalendarMonitorPage() {
   const now = new Date();
   const todayStart = limaDayStart(now);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const [totals, googleRequests, errors, [lastAutomatic], runs] = await Promise.all([
+  const [totals, googleRequests, microsoftRequests, errors, [lastAutomatic], runs] = await Promise.all([
     db.select({ executions: count() }).from(calendarSyncRun).where(gte(calendarSyncRun.startedAt, todayStart)),
     db.select({ requests: sum(calendarSyncRun.apiRequests) }).from(calendarSyncRun)
       .innerJoin(calendarAccount, eq(calendarSyncRun.accountId, calendarAccount.id))
       .where(and(gte(calendarSyncRun.startedAt, todayStart), eq(calendarAccount.provider, "google"))),
+    db.select({ requests: sum(calendarSyncRun.apiRequests) }).from(calendarSyncRun)
+      .innerJoin(calendarAccount, eq(calendarSyncRun.accountId, calendarAccount.id))
+      .where(and(gte(calendarSyncRun.startedAt, todayStart), eq(calendarAccount.provider, "microsoft"))),
     db.select({ executions: count() }).from(calendarSyncRun)
       .where(and(gte(calendarSyncRun.startedAt, todayStart), ne(calendarSyncRun.status, "success"))),
     db.select({ startedAt: calendarSyncRun.startedAt }).from(calendarSyncRun)
@@ -31,5 +34,5 @@ export default async function CalendarMonitorPage() {
       .where(gte(calendarSyncRun.startedAt, thirtyDaysAgo)).orderBy(desc(calendarSyncRun.startedAt)).limit(500),
   ]);
   const rows: CalendarSyncMonitorRow[] = runs.map((run) => ({ ...run, startedAt: run.startedAt.toISOString(), finishedAt: run.finishedAt?.toISOString() ?? null }));
-  return <main className="mx-auto w-full max-w-7xl px-6 py-8 sm:px-8"><CalendarMonitorPanel rows={rows} googleRequestsToday={Number(googleRequests[0]?.requests ?? 0)} executionsToday={totals[0]?.executions ?? 0} errorsToday={errors[0]?.executions ?? 0} lastAutomaticRun={lastAutomatic?.startedAt.toISOString() ?? null} /></main>;
+  return <main className="mx-auto w-full max-w-7xl px-6 py-8 sm:px-8"><CalendarMonitorPanel rows={rows} googleRequestsToday={Number(googleRequests[0]?.requests ?? 0)} microsoftRequestsToday={Number(microsoftRequests[0]?.requests ?? 0)} executionsToday={totals[0]?.executions ?? 0} errorsToday={errors[0]?.executions ?? 0} lastAutomaticRun={lastAutomatic?.startedAt.toISOString() ?? null} /></main>;
 }

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."project_dependency_status" ADD VALUE 'implemented' BEFORE 'resolved';

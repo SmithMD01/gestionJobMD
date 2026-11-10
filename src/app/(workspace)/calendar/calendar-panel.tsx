@@ -86,16 +86,19 @@ export function CalendarPanel({ companyId, companyName, initialEvents, centraliz
 
   function shiftPeriod(amount: number) {
     setCurrentDate((current) => {
+      if (displayMode === "agenda") {
+        const parts = new Intl.DateTimeFormat("en", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(current);
+        const dateParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+        return new Date(Date.UTC(Number(dateParts.year), Number(dateParts.month) - 1, Number(dateParts.day) + amount, 12));
+      }
       const next = new Date(current);
       if (displayMode === "month") next.setMonth(next.getMonth() + amount);
-      else if (displayMode === "week") next.setDate(next.getDate() + amount * 7);
-      else next.setDate(next.getDate() + amount);
+      else next.setDate(next.getDate() + amount * 7);
       return next;
     });
   }
 
   function periodLabel() {
-    if (displayMode === "agenda") return "Todos los eventos";
     if (displayMode === "month") return new Intl.DateTimeFormat("es-PE", { month: "long", year: "numeric" }).format(currentDate);
     const end = new Date(currentDate);
     end.setDate(end.getDate() + 6);
@@ -135,7 +138,7 @@ export function CalendarPanel({ companyId, companyName, initialEvents, centraliz
         <div><p className="text-muted">Solicitudes de Calendar API hoy</p><p className="mt-1 text-base font-semibold tabular-nums text-ink">{dailyApiRequests}</p><p className="mt-1 text-muted">Contador de esta aplicación para tu usuario; Google Cloud muestra el total del proyecto.</p></div>
       </section>}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-1"><Button type="button" variant={displayMode === "agenda" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("agenda")}>Agenda</Button><Button type="button" variant={displayMode === "week" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("week")}>Semana</Button><Button type="button" variant={displayMode === "month" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("month")}>Mes</Button></div>{displayMode !== "agenda" && <div className="flex items-center gap-2"><Button type="button" variant="secondary" size="compact" onClick={() => shiftPeriod(-1)} aria-label="Periodo anterior">Anterior</Button><Button type="button" variant="secondary" size="compact" onClick={() => setCurrentDate(new Date())}>Hoy</Button><Button type="button" variant="secondary" size="compact" onClick={() => shiftPeriod(1)} aria-label="Periodo siguiente">Siguiente</Button><span className="min-w-32 text-right text-xs font-medium capitalize text-muted">{periodLabel()}</span></div>}</div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-1"><Button type="button" variant={displayMode === "agenda" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("agenda")}>Agenda</Button><Button type="button" variant={displayMode === "week" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("week")}>Semana</Button><Button type="button" variant={displayMode === "month" ? "primary" : "secondary"} size="compact" onClick={() => setDisplayMode("month")}>Mes</Button></div><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="secondary" size="compact" onClick={() => shiftPeriod(-1)} aria-label={displayMode === "agenda" ? "Día anterior" : "Periodo anterior"}>{displayMode === "agenda" ? "Día anterior" : "Anterior"}</Button><Button type="button" variant="secondary" size="compact" onClick={() => setCurrentDate(new Date())}>Hoy</Button><Button type="button" variant="secondary" size="compact" onClick={() => shiftPeriod(1)} aria-label={displayMode === "agenda" ? "Día siguiente" : "Periodo siguiente"}>{displayMode === "agenda" ? "Día siguiente" : "Siguiente"}</Button>{displayMode !== "agenda" && <span className="min-w-36 text-right text-xs font-medium capitalize text-muted">{periodLabel()}</span>}</div></div>
       <CalendarViews events={events} mode={displayMode} currentDate={currentDate} companyName={companyName} />
     </section>
   );

@@ -12,7 +12,7 @@ export const activityStatus = pgEnum("activity_status", ["to_validate", "pending
 export const activityType = pgEnum("activity_type", ["task", "meeting", "coordination", "follow_up", "development", "other"]);
 export const activityOrigin = pgEnum("activity_origin", ["manual", "voice", "email", "meeting", "automation"]);
 export const documentationStatus = pgEnum("documentation_status", ["draft", "in_review", "approved", "archived"]);
-export const projectDependencyStatus = pgEnum("project_dependency_status", ["pending", "answered", "awaiting_confirmation", "resolved"]);
+export const projectDependencyStatus = pgEnum("project_dependency_status", ["pending", "answered", "awaiting_confirmation", "implemented", "resolved"]);
 export const projectDependencyCategory = pgEnum("project_dependency_category", ["document", "workflow", "business_rule", "data", "other"]);
 export const developmentStage = pgTable("development_stage", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -71,6 +71,7 @@ export const projectDependency = pgTable("project_dependency", {
   id: uuid("id").defaultRandom().primaryKey(),
   projectId: uuid("project_id").notNull().references(() => project.id),
   externalCode: text("external_code"),
+  responsible: text("responsible"),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   category: projectDependencyCategory("category").notNull().default("other"),

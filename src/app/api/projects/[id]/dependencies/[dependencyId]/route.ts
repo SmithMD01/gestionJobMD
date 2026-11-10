@@ -42,6 +42,7 @@ export async function PATCH(request: Request, context: Context) {
       await tx.insert(projectAuditEvent).values({ projectId: current.id!, actorUserId: current.access!.session!.user.id, action: "project.dependency.updated" });
       await tx.insert(auditEvent).values({ companyId: current.access!.company!.id, actorUserId: current.access!.session!.user.id, entityType: "project_dependency", entityId: item.id, entityName: item.externalCode || item.title, action: "project_dependency.updated", changeDetail: updatedDetail("la dependencia", [
         { label: "Código de referencia", before: previous.externalCode, after: item.externalCode },
+        { label: "Responsable", before: previous.responsible, after: item.responsible },
         { label: "Punto", before: previous.title, after: item.title },
         { label: "Estado", before: previous.status, after: item.status },
         { label: "Respuesta", before: previous.response, after: item.response },

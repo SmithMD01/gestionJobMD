@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/client";
 import { calendarAccount, calendarDestination, calendarEvent, calendarSyncRun, companyCalendarBinding } from "@/modules/calendar/schema";
+import { isCalendarProviderSyncEnabled } from "@/modules/calendar/instance-config";
 import { company, companyMember } from "@/modules/companies/schema";
 import { hasModuleAccess } from "@/modules/access/permissions";
 import { decryptSecret, getGoogleOAuthConfig, listGoogleCalendarEventsPage, refreshGoogleAccessToken, type GoogleCalendarEvent } from "@/modules/calendar/google-oauth";
@@ -30,6 +31,7 @@ function parseGoogleDate(value: { dateTime?: string; date?: string }) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return Response.json({ error: "No autenticado" }, { status: 401 });
+  if (!await isCalendarProviderSyncEnabled()) return Response.json({ error: "Las consultas a proveedores están desactivadas en esta instalación." }, { status: 409 });
   const parsed = syncInput.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Selecciona una empresa válida." }, { status: 400 });
 

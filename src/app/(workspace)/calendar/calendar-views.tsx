@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react
 import { DataTable } from "@/components/tables/data-table";
 import { Dialog } from "@/components/dialogs/dialog";
 import { Button } from "@/components/ui/button";
+import { normalizeCalendarDescription } from "@/modules/calendar/description";
 import type { CalendarEventRow } from "./calendar-panel";
 
 const HOUR_HEIGHT = 56;
@@ -61,7 +62,31 @@ function formatAgendaTime(event: CalendarEventRow) {
   const lastIncludedDay = new Date(new Date(event.endsAt).getTime() - 1);
   const startLabel = new Intl.DateTimeFormat("es-PE", { weekday: "short", day: "2-digit", month: "short", timeZone: "America/Lima" }).format(new Date(event.startsAt));
   const endLabel = new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "short", timeZone: "America/Lima" }).format(lastIncludedDay);
-  return dateKey(new Date(event.startsAt)) === dateKey(lastIncludedDay) ? `${startLabel} · Todo el día` : `${startLabel} – ${endLabel} · Todo el día`;
+  return zonedDateKey(new Date(event.startsAt)) === zonedDateKey(lastIncludedDay) ? `${startLabel} · Todo el día` : `${startLabel} – ${endLabel} · Todo el día`;
+}
+
+function eventOccursOnDay(event: CalendarEventRow, day: Date) {
+  const dayKey = zonedDateKey(day);
+  const lastIncludedMoment = new Date(new Date(event.endsAt).getTime() - 1);
+  return zonedDateKey(new Date(event.startsAt)) <= dayKey && zonedDateKey(lastIncludedMoment) >= dayKey;
+}
+
+function remainingTimeLabel(event: CalendarEventRow, now: Date) {
+  if (event.syncStatus === "cancelled") return { text: "Cancelada", className: "text-danger" };
+  const start = new Date(event.startsAt).getTime();
+  const end = new Date(event.endsAt).getTime();
+  const remaining = start - now.getTime();
+  if (remaining <= 0 && now.getTime() < end) return { text: "En curso", className: "font-medium text-accent" };
+  if (now.getTime() >= end) return { text: "Finalizada", className: "text-muted" };
+
+  const totalMinutes = Math.floor(remaining / 60_000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return { text: `${days} d ${hours} h`, className: "font-medium text-ink" };
+  if (hours > 0 && minutes > 0) return { text: `${hours} h ${minutes} min`, className: "font-medium text-ink" };
+  if (hours > 0) return { text: `${hours} h`, className: "font-medium text-ink" };
+  return { text: `${Math.max(1, minutes)} min`, className: "font-medium text-ink" };
 }
 
 function formatDateTime(value: string) {
@@ -73,6 +98,15 @@ function formatDateTime(value: string) {
 function participantResponseLabel(status: string) {
   const labels: Record<string, string> = { accepted: "Aceptó", tentative: "Provisional", needsAction: "Sin responder", declined: "Rechazó" };
   return labels[status] ?? status;
+}
+
+function renderDescriptionWithLinks(value: string) {
+  return value.split(/(https?:\/\/[^\s<>]+)/gi).map((part, index) => {
+    if (!/^https?:\/\//i.test(part)) return <Fragment key={index}>{part}</Fragment>;
+    const url = part.replace(/[),.;!?]+$/g, "");
+    const suffix = part.slice(url.length);
+    return <Fragment key={index}><a href={url} target="_blank" rel="noreferrer" className="break-all text-accent underline underline-offset-2">{url}</a>{suffix}</Fragment>;
+  });
 }
 
 function eventDot(event: CalendarEventRow) {
@@ -134,10 +168,11 @@ function getOverlapGroups(events: CalendarEventRow[]) {
 export function CalendarViews({ events, mode, currentDate, companyName }: { events: CalendarEventRow[]; mode: "agenda" | "week" | "month"; currentDate: Date; companyName: string }) {
   if (mode === "week") return <WeekView events={events} currentDate={currentDate} companyName={companyName} />;
   if (mode === "month") return <MonthView events={events} currentDate={currentDate} />;
-  return <AgendaView events={events} companyName={companyName} />;
+  return <AgendaView events={events} currentDate={currentDate} companyName={companyName} />;
 }
 
 function EventDetailDialog({ selected, companyName, onClose }: { selected: CalendarEventRow | null; companyName: string; onClose: () => void }) {
+  const description = selected ? normalizeCalendarDescription(selected.description) : "";
   return <Dialog title="Detalle del evento" open={selected !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
     {selected && <div className="space-y-5 text-sm">
       <div><p className="text-xs uppercase tracking-wide text-subtle">Evento</p><h3 className="mt-1 text-base font-semibold text-ink">{selected.title}</h3></div>
@@ -148,26 +183,39 @@ function EventDetailDialog({ selected, companyName, onClose }: { selected: Calen
         <div><p className="text-xs uppercase tracking-wide text-subtle">Inicio</p><p className="mt-1 text-ink">{selected.allDay ? `${new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeZone: "America/Lima" }).format(new Date(selected.startsAt))} · Todo el día` : formatDateTime(selected.startsAt)}</p></div>
         <div><p className="text-xs uppercase tracking-wide text-subtle">Fin</p><p className="mt-1 text-ink">{selected.allDay ? new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeZone: "America/Lima" }).format(new Date(new Date(selected.endsAt).getTime() - 1)) : formatDateTime(selected.endsAt)}</p></div>
       </div>
-      <div><p className="text-xs uppercase tracking-wide text-subtle">Descripción, contexto y participantes</p><p className="mt-1 whitespace-pre-wrap leading-6 text-ink">{selected.description.trim() || "Este evento no tiene descripción."}</p></div>
+      <div><p className="text-xs uppercase tracking-wide text-subtle">Descripción y contexto</p><div className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-line bg-canvas p-3"><p className="whitespace-pre-wrap break-words text-xs leading-5 text-ink">{description ? renderDescriptionWithLinks(description) : "Este evento no tiene descripción."}</p></div></div>
       <div><p className="text-xs uppercase tracking-wide text-subtle">Participantes de la invitación</p>{selected.participants.length === 0 ? <p className="mt-1 text-muted">El proveedor no devolvió participantes para este evento.</p> : <ul className="mt-2 space-y-2">{selected.participants.map((participant, index) => <li key={`${participant.email ?? participant.name}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-canvas px-3 py-2"><span className="min-w-0"><span className="block truncate font-medium text-ink">{participant.name || participant.email || "Participante"}{participant.organizer && <span className="ml-2 text-[10px] font-normal text-muted">Organizador</span>}</span>{participant.name && participant.email && <span className="block truncate text-xs text-muted">{participant.email}</span>}</span>{participant.responseStatus && <span className="shrink-0 text-xs text-muted">{participantResponseLabel(participant.responseStatus)}</span>}</li>)}</ul>}</div>
     </div>}
   </Dialog>;
 }
 
-function AgendaView({ events, companyName }: { events: CalendarEventRow[]; companyName: string }) {
+function AgendaView({ events, currentDate, companyName }: { events: CalendarEventRow[]; currentDate: Date; companyName: string }) {
   const [selected, setSelected] = useState<CalendarEventRow | null>(null);
+  const [now, setNow] = useState(() => new Date());
+  const dayEvents = events.filter((event) => eventOccursOnDay(event, currentDate)).sort(compareEventVisibility);
+  const today = zonedDateKey(currentDate) === zonedDateKey(new Date());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
   return <>
+    <div className={`mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${today ? "border-accent bg-accent-soft/30" : "border-line bg-surface"}`}>
+      <p className="text-xs font-semibold capitalize text-ink">{new Intl.DateTimeFormat("es-PE", { weekday: "long", day: "2-digit", month: "long", year: "numeric", timeZone: "America/Lima" }).format(currentDate)}{today && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-white">Hoy</span>}</p>
+      <span className="text-[11px] text-muted">{dayEvents.length} evento{dayEvents.length === 1 ? "" : "s"}</span>
+    </div>
     <DataTable
       className="!text-xs"
-      containerClassName="!mt-4"
-      rows={events}
+      containerClassName="!mt-2"
+      rows={dayEvents}
+      pagination={false}
+      rowClassName={() => today ? "bg-accent-soft/20" : ""}
       rowKey={(event) => event.id}
-      emptyMessage="No hay eventos para mostrar en este calendario."
-      sortRows={(items) => [...items].sort(compareEventVisibility)}
+      emptyMessage="No hay eventos para este día. Usa los controles para consultar otros días."
       columns={[
         { key: "event", label: "Evento", className: "min-w-56", render: (event) => <span className={`font-medium ${event.syncStatus === "cancelled" ? "text-danger" : "text-ink"}`}>{event.title}</span> },
         { key: "company", label: "Empresa y origen", className: "min-w-48", render: (event) => <span className="block"><span className="block">{event.companyName || companyName}</span><span className="mt-1 inline-flex max-w-full items-center gap-1.5 truncate text-[10px] text-muted">{sourceDot(event, "h-2.5 w-2.5")}<span className="truncate" title={sourceLabel(event)}>{sourceLabel(event)}</span></span></span> },
         { key: "date", label: "Fecha y hora", className: "min-w-48", render: (event) => formatAgendaTime(event) },
+        { key: "remaining", label: "Tiempo restante", className: "whitespace-nowrap", render: (event) => { const remaining = remainingTimeLabel(event, now); return <span className={remaining.className}>{remaining.text}</span>; } },
         { key: "sync", label: "Sincronización", className: "min-w-44", render: (event) => <span className="inline-flex items-center gap-2 whitespace-nowrap">{eventDot(event)}{statusLabels[event.syncStatus] ?? event.syncStatus}</span> },
         { key: "detail", label: "Detalle", className: "w-24", render: (event) => <Button type="button" size="compact" variant="secondary" onClick={() => setSelected(event)}>Ver detalle</Button> },
       ]}

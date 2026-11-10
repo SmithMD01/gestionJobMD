@@ -82,3 +82,11 @@ export const calendarSyncRun = pgTable("calendar_sync_run", {
   index("calendar_sync_run_user_started_idx").on(table.userId, table.startedAt),
   index("calendar_sync_run_account_started_idx").on(table.accountId, table.startedAt),
 ]);
+
+/** One installation-level switch controlling whether this instance may call calendar providers. */
+export const calendarInstanceConfig = pgTable("calendar_instance_config", {
+  id: integer("id").primaryKey(),
+  syncMode: text("sync_mode").notNull().default("origin"),
+  updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

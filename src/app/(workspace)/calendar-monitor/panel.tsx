@@ -22,7 +22,7 @@ function StatCard({ label, value, hint }: { label: string; value: string | numbe
   return <div className="rounded-xl border border-line bg-surface p-4"><p className="text-xs text-muted">{label}</p><p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p><p className="mt-1 text-[11px] text-subtle">{hint}</p></div>;
 }
 
-export function CalendarMonitorPanel({ rows, googleRequestsToday, executionsToday, errorsToday, lastAutomaticRun }: { rows: CalendarSyncMonitorRow[]; googleRequestsToday: number; executionsToday: number; errorsToday: number; lastAutomaticRun: string | null }) {
+export function CalendarMonitorPanel({ rows, googleRequestsToday, microsoftRequestsToday, executionsToday, errorsToday, lastAutomaticRun }: { rows: CalendarSyncMonitorRow[]; googleRequestsToday: number; microsoftRequestsToday: number; executionsToday: number; errorsToday: number; lastAutomaticRun: string | null }) {
   const [status, setStatus] = useState("all");
   const [trigger, setTrigger] = useState("all");
   const [provider, setProvider] = useState("all");
@@ -44,14 +44,15 @@ export function CalendarMonitorPanel({ rows, googleRequestsToday, executionsToda
 
   return <>
     <ModuleHeader title="Consumo de calendario" description="Una consulta API es una llamada HTTP a Google Calendar o Microsoft Graph para leer eventos; no es una reunión ni un evento individual. Cada consulta trae una página de resultados y puede haber varias si hay más páginas. Una sincronización centralizada consulta varias cuentas y genera un registro por cuenta." />
-    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
       <div className="rounded-xl border border-line bg-surface p-4" title="Se cuentan las llamadas de consulta a Google Calendar, no los eventos ni las reuniones.">
         <p className="text-xs text-muted">Consultas de Google Calendar hoy</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{googleRequestsToday.toLocaleString("es-PE")} <span className="text-xs font-normal text-muted">/ {GOOGLE_DAILY_REQUEST_THRESHOLD.toLocaleString("es-PE")}</span></p>
         <div role="progressbar" aria-label="Uso del umbral diario de referencia de Google Calendar" aria-valuemin={0} aria-valuemax={GOOGLE_DAILY_REQUEST_THRESHOLD} aria-valuenow={Math.min(googleRequestsToday, GOOGLE_DAILY_REQUEST_THRESHOLD)} className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover"><span className={`block h-full rounded-full ${quotaColor}`} style={{ width: `${Math.min(100, quotaPercent)}%` }} /></div>
         <p className="mt-1 text-[10px] tabular-nums text-muted">{quotaPercent.toFixed(3)}% del umbral publicado</p>
-        <p className="mt-1 text-[11px] text-subtle">Referencia: 1,000,000 consultas/día por proyecto Google. La cuota real se revisa en Google Cloud.</p>
+        <p className="mt-1 text-[11px] text-subtle">Incluye sincronizaciones manuales y automáticas. Referencia: 1,000,000 consultas/día por proyecto Google; revisa la cuota real en Google Cloud.</p>
       </div>
+      <StatCard label="Consultas de Outlook hoy" value={microsoftRequestsToday.toLocaleString("es-PE")} hint="Llamadas a Microsoft Graph. Incluye sincronizaciones manuales y automáticas." />
       <StatCard label="Cuentas procesadas hoy" value={executionsToday} hint="Es el número de registros por cuenta, no los clics en sincronizar." />
       <StatCard label="Cuentas con incidencias" value={errorsToday} hint="Registros con error o resultado parcial hoy." />
       <StatCard label="Última automática" value={lastAutomaticRun ? formatDate(lastAutomaticRun) : "—"} hint="Se intenta cada 20 min con el espacio abierto; no es tiempo real." />

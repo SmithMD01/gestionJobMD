@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { auth } from "@/lib/auth";
 import { calendarAccount } from "@/modules/calendar/schema";
 import { exchangeGoogleAuthorizationCode, getGoogleOAuthConfig } from "@/modules/calendar/google-oauth";
+import { isCalendarProviderSyncEnabled } from "@/modules/calendar/instance-config";
 
 const stateCookieName = "google_calendar_oauth_state";
 const stateCookiePath = "/api/calendar/google";
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
 
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return NextResponse.redirect(new URL("/sign-in", request.url));
+  if (!await isCalendarProviderSyncEnabled()) return responseFor("sync-disabled");
   const [expectedState, initiatingUserId] = cookieState?.split(":", 2) ?? [];
   if (!expectedState || !initiatingUserId || initiatingUserId !== session.user.id || expectedState !== query.get("state")) return responseFor("invalid-state");
   if (query.has("error")) return responseFor(query.get("error") === "access_denied" ? "cancelled" : "failed");

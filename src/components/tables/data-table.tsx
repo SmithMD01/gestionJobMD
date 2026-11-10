@@ -34,6 +34,7 @@ export function DataTable<T>({
   filterRow,
   filterKey,
   sortRows,
+  rowClassName,
   pagination,
 }: {
   rows: T[];
@@ -46,6 +47,7 @@ export function DataTable<T>({
   toolbar?: ReactNode;
   filterRow?: (item: T) => boolean;
   sortRows?: (items: T[]) => T[];
+  rowClassName?: (item: T) => string;
   /** Change this when controlled filters change to return client tables to their first page. */
   filterKey?: string;
   /** Client pagination is the default. Pass false for compact embedded tables. */
@@ -93,7 +95,7 @@ export function DataTable<T>({
           <tbody>
             {loading ? <tr><td colSpan={columns.length} role="status" className="text-muted">Cargando datos…</td></tr>
               : visibleRows.length === 0 ? <tr><td colSpan={columns.length} className="text-muted">{emptyMessage}</td></tr>
-                : visibleRows.map((row, index) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key} className={column.className}>{column.render(row, index)}</td>)}</tr>)}
+                : visibleRows.map((row, index) => <tr key={rowKey(row)} className={rowClassName?.(row)}>{columns.map((column) => <td key={column.key} className={column.className}>{column.render(row, index)}</td>)}</tr>)}
           </tbody>
         </table>
       </div>

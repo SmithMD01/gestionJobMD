@@ -1,0 +1,1 @@
+ALTER TABLE "project_dependency" ADD COLUMN "responsible" text;

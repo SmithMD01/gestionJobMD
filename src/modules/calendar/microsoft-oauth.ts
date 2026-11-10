@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { decryptSecret, encryptSecret, getCalendarTokenEncryptionKey } from "./google-oauth";
+import { normalizeCalendarDescription } from "./description";
 
 export const MICROSOFT_CALENDAR_SCOPES = ["openid", "profile", "email", "offline_access", "User.Read", "Calendars.Read"] as const;
 const graphBaseUrl = "https://graph.microsoft.com/v1.0";
@@ -154,6 +155,25 @@ export function microsoftEventDate(value?: { dateTime: string; timeZone?: string
 
 export function microsoftEventDescription(event: MicrosoftCalendarEvent) {
   const content = event.body?.content?.trim();
-  if (!content) return event.bodyPreview ?? "";
-  return content.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(?:div|p|li)>/gi, "\n").replace(/<[^>]*>/g, "").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').trim();
+  if (!content) return normalizeCalendarDescription(event.bodyPreview ?? "");
+  const withLinks = content.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (_anchor, attributes: string, label: string) => {
+    const href = attributes.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2]?.replace(/&amp;/gi, "&").trim();
+    const text = label.replace(/<[^>]*>/g, "").trim();
+    if (!href || !/^https?:\/\//i.test(href)) return text;
+    return text && text.toLocaleLowerCase() !== href.toLocaleLowerCase() ? `${text}: ${href}` : href;
+  });
+  const plainText = withLinks
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "• ")
+    .replace(/<\/(?:div|p|li|tr|h[1-6]|ul|ol)>/gi, "\n")
+    .replace(/<\/t[dh]>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'");
+  return normalizeCalendarDescription(plainText);
 }
