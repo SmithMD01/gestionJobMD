@@ -19,6 +19,7 @@ export type ModulePermissionKey =
   | "settings.calendar-usage"
   | "settings.calendar-integration"
   | "audit"
+  | "email.logs"
   | "calendar"
   | "calendar.centralized";
 
@@ -59,6 +60,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
   { key: "settings.calendar-usage", label: "Consumo de calendario", description: "Seguimiento de sincronizaciones y solicitudes a proveedores de calendario. Solo administradores.", group: "administration", parentKey: "settings", href: "/calendar-monitor", icon: "calendar", requiredForAdmin: true, adminOnly: true },
   { key: "settings.calendar-integration", label: "Integración de calendarios", description: "Controla qué instalación consulta los proveedores de calendario. Solo administradores.", group: "administration", parentKey: "settings", href: "/settings/calendar-integration", icon: "calendar", requiredForAdmin: true, adminOnly: true },
   { key: "audit", label: "Auditoría", description: "Historial de cambios y operaciones relevantes.", group: "control", href: "/audit", icon: "audit" },
+  { key: "email.logs", label: "Seguimiento de correos", description: "Estado de los correos de recuperación de contraseña enviados por el sistema.", group: "control", href: "/email-logs", icon: "mail" },
   { key: "calendar", label: "Calendario", description: "Calendario personal dentro de la empresa activa.", group: "principal", href: "/calendar", icon: "calendar" },
   { key: "calendar.centralized", label: "Calendario centralizado", description: "Vista consolidada de los calendarios propios del usuario.", group: "principal", parentKey: "calendar", icon: "calendar" },
 ] as const;

@@ -5,6 +5,7 @@ import type { ProjectScheduleItem } from "./project-schedule";
 import { DataTable, type TableColumn } from "@/components/tables/data-table";
 import { ACTIVITY_UPCOMING_DAYS, activityAttention, currentDateKey, type ActivityAttention } from "@/modules/projects/activity-attention";
 import { activityProgressPercent, formatProgressPercent } from "@/modules/projects/activity-progress";
+import { activityActualMinutes, formatActivityDuration } from "@/modules/projects/activity-time";
 
 type Stage = { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean };
 type ProjectModule = { id: string; parentId: string | null; name: string };
@@ -55,7 +56,7 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
   const today = currentDateKey();
   const active = items.filter((item) => item.status !== "cancelled");
   const pending = active.filter((item) => item.status !== "completed").length;
-  const hours = active.reduce((total, item) => total + (item.hours ?? 0), 0);
+  const actualMinutes = active.reduce((total, item) => total + activityActualMinutes(item.timeEntries), 0);
   const overdue = active.filter((item) => item.dueDate && item.dueDate < today && item.status !== "completed").length;
   const trackable = active.filter((item) => item.status !== "completed");
   const attentionKind = (item: ProjectActivity) => activityAttention(item, today);
@@ -105,7 +106,7 @@ function ActivityGroup({ title, items, development, stages }: { title: string; i
     <div className="flex items-center justify-between gap-3"><h4 className="text-sm font-semibold text-ink">{title}</h4><span className="text-[11px] text-subtle">{active.length} registradas</span></div>
     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
       <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">{development ? "En etapas" : "Pendientes"}</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{pending}</p></div>
-      <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Horas</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{hours}</p></div>
+      <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Horas registradas</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{formatActivityDuration(actualMinutes)}</p></div>
       <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Próximas / P5</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{attentionItems.length}</p></div>
       <div className="rounded-md bg-surface px-2.5 py-2"><p className="text-[10px] text-subtle">Vencidas</p><p className="mt-1 text-sm font-semibold tabular-nums text-ink">{overdue}</p></div>
     </div>

@@ -69,9 +69,14 @@ export const activityInput = z.object({
   priority: z.number().int().min(1).max(5),
   activityDate: z.iso.date().nullable(),
   dueDate: z.iso.date().nullable(),
-  hours: z.number().int().min(0).max(10000).nullable(),
+  hours: z.number().min(0).max(10000).multipleOf(0.5).nullable(),
+  completedDate: z.iso.date().nullable().optional(),
   observations: z.string().trim().max(5000),
   checklist: z.string().trim().max(5000),
   origin: z.enum(["manual", "voice", "email", "meeting", "automation"]),
   responsibleIds: z.array(z.uuid()).max(20).default([]),
 }).refine((value) => !value.activityDate || !value.dueDate || value.dueDate >= value.activityDate, { path: ["dueDate"], message: "La fecha límite debe ser posterior o igual a la fecha de actividad" });
+
+export const activityTimeEntryInput = z.object({
+  minutes: z.number().int().min(30).max(1440).multipleOf(30),
+}).strict();

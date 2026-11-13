@@ -16,7 +16,7 @@ export function NavbarBackLink() {
     return <Link href={`/projects/${editMatch[1]}`} className="ui-back-link">Volver al proyecto</Link>;
   }
 
-  if (pathname === "/projects" || pathname === "/companies" || pathname === "/users" || pathname === "/audit" || pathname === "/security/totp" || pathname === "/security/password" || pathname === "/security/sessions") {
+  if (pathname === "/projects" || pathname === "/companies" || pathname === "/users" || pathname === "/audit" || pathname === "/email-logs" || pathname === "/security/totp" || pathname === "/security/password" || pathname === "/security/sessions") {
     return <Link href="/dashboard" className="ui-back-link">Volver al panel</Link>;
   }
 

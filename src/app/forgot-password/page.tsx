@@ -1,5 +1,5 @@
-import { ButtonLink } from "@/components/ui/button";
 import { LoginWaveBackground } from "@/app/sign-in/login-wave-background";
+import { ForgotPasswordForm } from "./forgot-password-form";
 
 export default function ForgotPasswordPage() {
   return (
@@ -11,8 +11,7 @@ export default function ForgotPasswordPage() {
           <div><p className="text-sm font-semibold text-ink">Gestión MD</p><p className="mt-0.5 text-xs text-subtle">Espacio de trabajo</p></div>
         </div>
         <h1 id="forgot-password-title" className="text-2xl font-semibold text-ink">Recuperar contraseña</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">Solicita al administrador de tu empresa el restablecimiento de tus credenciales.</p>
-        <ButtonLink href="/sign-in" variant="primary" className="mt-7 w-full">Volver al inicio de sesión</ButtonLink>
+        <ForgotPasswordForm />
       </section>
     </main>
   );

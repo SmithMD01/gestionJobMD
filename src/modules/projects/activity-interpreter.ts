@@ -119,9 +119,13 @@ export function interpretActivityText(text: string, options: { developmentOnly?:
     else if (section.key === "tipo" && !options.developmentOnly) result.type = parseType(value);
     else if (section.key === "estado" && !options.developmentOnly) result.status = parseStatus(value);
     else if (section.key === "horas") {
-      const hours = Number(value.match(/\d+/)?.[0]);
-      if (Number.isFinite(hours)) result.hours = hours;
-      else result.warnings.push("No se pudieron interpretar las horas.");
+      const normalizedValue = normalize(value);
+      const numeric = normalizedValue.match(/(\d+(?:[.,]\d+)?)/)?.[1];
+      const written = normalizedValue.match(/\b(uno|una|dos|tres|cuatro|cinco)\b/)?.[1];
+      const baseHours = numeric ? Number(numeric.replace(",", ".")) : written ? (written === "una" ? 1 : numberWords[written]) : undefined;
+      const hours = normalizedValue.includes("media") ? (baseHours ?? 0) + 0.5 : normalizedValue.includes("media hora") ? 0.5 : baseHours;
+      if (hours !== undefined && Number.isFinite(hours) && hours % 0.5 === 0) result.hours = hours;
+      else result.warnings.push("No se pudieron interpretar las horas. Usa incrementos de 30 minutos, por ejemplo 1.5.");
     } else if (section.key.startsWith("etapa") && options.developmentOnly) {
       const normalizedValue = normalize(value);
       const stage = (options.stages ?? []).find((item) => normalizedValue.includes(normalize(item.name)));

@@ -4,10 +4,12 @@ import { db } from "@/db/client";
 import { companyTeamMember } from "@/modules/companies/schema";
 import { authorizeProjectRequest } from "@/modules/projects/authorization";
 import { activityResponsiblesInCompany, moduleInProject, projectInCompany, teamMemberIdsInCompany } from "@/modules/projects/access";
-import { activity, activityResponsible, developmentStage, projectAuditEvent } from "@/modules/projects/schema";
+import { user } from "@/db/auth-schema";
+import { activity, activityResponsible, activityTimeEntry, developmentStage, projectAuditEvent } from "@/modules/projects/schema";
 import { auditEvent } from "@/modules/audit/schema";
 import { activityInput } from "@/modules/projects/validation";
 import { createdDetail } from "@/modules/audit/details";
+import { completionDateTimestamp } from "@/modules/projects/activity-time";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -19,7 +21,13 @@ export async function GET(request: Request, { params }: Context) {
   const activities = await db.select().from(activity).where(eq(activity.projectId, id)).orderBy(asc(activity.dueDate), asc(activity.createdAt));
   const activityIds = activities.map((item) => item.id);
   const responsibleByActivity = await activityResponsiblesInCompany(activityIds, access.company!.id);
-  return Response.json({ activities: activities.map((item) => ({ ...item, responsibleIds: responsibleByActivity.get(item.id)?.ids ?? [], responsibleNames: responsibleByActivity.get(item.id)?.names ?? [] })) });
+  const timeRows = activityIds.length ? await db.select({ id: activityTimeEntry.id, activityId: activityTimeEntry.activityId, minutes: activityTimeEntry.minutes, loggedByName: user.name, createdAt: activityTimeEntry.createdAt })
+    .from(activityTimeEntry).innerJoin(user, eq(activityTimeEntry.loggedBy, user.id)).where(inArray(activityTimeEntry.activityId, activityIds)).orderBy(asc(activityTimeEntry.createdAt)) : [];
+  const timeEntriesByActivity = timeRows.reduce<Record<string, typeof timeRows>>((map, entry) => {
+    (map[entry.activityId] ??= []).push(entry);
+    return map;
+  }, {});
+  return Response.json({ activities: activities.map((item) => ({ ...item, responsibleIds: responsibleByActivity.get(item.id)?.ids ?? [], responsibleNames: responsibleByActivity.get(item.id)?.names ?? [], timeEntries: timeEntriesByActivity[item.id] ?? [] })) });
 }
 
 export async function POST(request: Request, { params }: Context) {
@@ -42,11 +50,14 @@ export async function POST(request: Request, { params }: Context) {
     if (!developmentTarget) return Response.json({ error: "Selecciona una etapa activa del pipeline de la empresa." }, { status: 400 });
   }
   const created = await db.transaction(async (tx) => {
-    const activityValues = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key !== "responsibleIds")) as Omit<typeof parsed.data, "responsibleIds">;
+    const { completedDate, ...activityValuesWithDate } = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key !== "responsibleIds")) as Omit<typeof parsed.data, "responsibleIds">;
+    const activityValues = Object.fromEntries(Object.entries(activityValuesWithDate).filter(([key]) => key !== "completedDate")) as Omit<typeof parsed.data, "responsibleIds" | "completedDate">;
     const status = developmentTarget?.isCancelled ? "cancelled" : developmentTarget?.isTerminal ? "completed" : activityValues.status;
+    const isCompleted = activityValues.type === "development" ? Boolean(developmentTarget?.isTerminal) : activityValues.status === "completed";
+    const completedAt = isCompleted ? completionDateTimestamp(completedDate) ?? new Date() : null;
     const activityId = crypto.randomUUID();
     const prefix = activityValues.type === "development" ? "DEV" : "ACT";
-    const [item] = await tx.insert(activity).values({ id: activityId, code: `${prefix}-${activityId.slice(0, 8).toUpperCase()}`, projectId: id, createdBy: access.session!.user.id, ...activityValues, developmentStageId: developmentTarget?.id ?? null, status, completedAt: developmentTarget?.isTerminal ? new Date() : null }).returning();
+    const [item] = await tx.insert(activity).values({ id: activityId, code: `${prefix}-${activityId.slice(0, 8).toUpperCase()}`, projectId: id, createdBy: access.session!.user.id, ...activityValues, developmentStageId: developmentTarget?.id ?? null, status, completedAt }).returning();
     if (responsibleIds.length) await tx.insert(activityResponsible).values(responsibleIds.map((teamMemberId) => ({ activityId, teamMemberId })));
     await tx.insert(projectAuditEvent).values({ projectId: id, actorUserId: access.session!.user.id, action: "activity.created" });
     await tx.insert(auditEvent).values({ companyId: access.company!.id, actorUserId: access.session!.user.id, entityType: "activity", entityId: item.id, entityName: item.title, action: "activity.created", changeDetail: createdDetail("la actividad", `${item.code} — ${item.title}`) });

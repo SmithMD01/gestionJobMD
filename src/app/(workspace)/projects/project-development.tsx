@@ -10,6 +10,7 @@ import { ProjectActivityDetail } from "./project-activity-detail";
 import { parseChecklist, serializeChecklist } from "@/modules/projects/checklist";
 import { Button } from "@/components/ui/button";
 import { activityAttention, currentDateKey } from "@/modules/projects/activity-attention";
+import { activityActualMinutes, formatActivityDuration, formatActivityEstimate, type ActivityTimeEntry } from "@/modules/projects/activity-time";
 
 type Stage = { id: string; name: string; color: string; isTerminal: boolean; isCancelled: boolean };
 type TeamMember = { id: string; name: string; role: string | null };
@@ -59,9 +60,17 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
 
   function saved(item: ProjectActivity) {
     const responsibleNames = item.responsibleIds?.map((id) => teamMembers.find((member) => member.id === id)?.name).filter((name): name is string => Boolean(name));
-    const nextItem = { ...item, responsibleNames: responsibleNames?.length ? responsibleNames : editor?.responsibleNames };
+    const existing = activities.find((row) => row.id === item.id);
+    const nextItem = { ...item, timeEntries: item.timeEntries ?? existing?.timeEntries, responsibleNames: responsibleNames?.length ? responsibleNames : editor?.responsibleNames };
     setActivities((current) => editor ? current.map((row) => row.id === item.id ? nextItem : row) : [...current, nextItem]);
     setEditor(undefined);
+  }
+
+  function timeEntryAdded(entry: ActivityTimeEntry) {
+    if (!detail) return;
+    const updated = { ...detail, timeEntries: [entry, ...(detail.timeEntries ?? [])] };
+    setActivities((current) => current.map((row) => row.id === detail.id ? updated : row));
+    setDetail(updated);
   }
 
   async function remove() {
@@ -149,8 +158,10 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
         { key: "title", label: "Actividad", render: (item) => { const attention = activityAttention(item, today); return <span className={`font-medium ${attention === "overdue" ? "text-danger" : attention === "upcoming" ? "text-warning" : "text-ink"}`}>{item.title}</span>; } },
         { key: "module", label: "Módulo", render: (item) => <span className="text-muted">{moduleNames.get(item.moduleId ?? "") ?? "Sin módulo"}</span> },
         { key: "stage", label: "Etapa", render: (item) => <span className="inline-flex items-center gap-1.5"><span className={`size-2 rounded-full ${stageColor(stages.find((stage) => stage.id === item.developmentStageId)?.color ?? "neutral")}`} />{stages.find((stage) => stage.id === item.developmentStageId)?.name ?? "Sin etapa"}</span> },
-        { key: "priority", label: "Prioridad", render: (item) => <span className="font-medium text-ink">P{item.priority}</span> },
-        { key: "dates", label: "Fechas", render: (item) => { const attention = activityAttention(item, today); const className = attention === "overdue" ? "text-danger" : attention === "upcoming" ? "text-warning" : "text-muted"; return <span className={className}>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</span>; } },
+        { key: "priority", label: "Prior.", className: "w-14 whitespace-nowrap", render: (item) => <span className="font-medium text-ink">P{item.priority}</span> },
+        { key: "dates", label: "Fechas", className: "whitespace-nowrap", render: (item) => { const attention = activityAttention(item, today); const className = attention === "overdue" ? "text-danger" : attention === "upcoming" ? "text-warning" : "text-muted"; return <span className={className}>{item.activityDate ?? "—"}{item.dueDate ? ` – ${item.dueDate}` : ""}</span>; } },
+        { key: "completed", label: "Completado", className: "whitespace-nowrap", render: (item) => item.completedAt ? (item.completedAt instanceof Date ? item.completedAt : new Date(item.completedAt)).toLocaleDateString("es-PE", { timeZone: "America/Lima" }) : "—" },
+        { key: "hours", label: "Est. / real", className: "w-24 whitespace-nowrap text-[11px]", render: (item) => <span title="Horas estimadas / horas reales">{formatActivityEstimate(item.hours)} / {formatActivityDuration(activityActualMinutes(item.timeEntries))}</span> },
         { key: "responsibles", label: "Responsables", render: (item) => item.responsibleNames?.join(", ") || "—" },
         { key: "actions", label: "Acciones", render: (item) => <RowActions label={item.title} actions={[{ label: "Ver detalle", onSelect: () => { setDetail(item); setDetailSource("table"); } }, ...(!readOnly ? [{ label: "Editar", onSelect: () => setEditor(item) }, { label: "Eliminar", tone: "danger" as const, onSelect: () => { setError(""); setDeleting(item); } }] : [])]} /> },
       ] satisfies TableColumn<ProjectActivity>[]}
@@ -162,7 +173,7 @@ export function ProjectDevelopment({ projectId, readOnly = false, activities: in
 
     {error && <p role="alert" className="mt-3 text-xs text-danger">{error}</p>}
 
-    <ProjectActivityDetail activity={detail} stageName={detail ? stages.find((stage) => stage.id === detail.developmentStageId)?.name : undefined} moduleName={detail ? moduleNames.get(detail.moduleId ?? "") : undefined} open={detail !== null} onOpenChange={(open) => { if (!open) { setDetail(null); setDetailSource(null); } }} checklistPending={checklistPending !== null} onToggleChecklist={readOnly ? undefined : (index) => void toggleChecklist(index)} onEdit={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setEditor(detail); } } : undefined} onDelete={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setError(""); setDeleting(detail); } } : undefined} />
+    <ProjectActivityDetail projectId={projectId} activity={detail} stageName={detail ? stages.find((stage) => stage.id === detail.developmentStageId)?.name : undefined} moduleName={detail ? moduleNames.get(detail.moduleId ?? "") : undefined} open={detail !== null} onOpenChange={(open) => { if (!open) { setDetail(null); setDetailSource(null); } }} checklistPending={checklistPending !== null} onToggleChecklist={readOnly ? undefined : (index) => void toggleChecklist(index)} onTimeEntryAdded={readOnly ? undefined : timeEntryAdded} onEdit={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setEditor(detail); } } : undefined} onDelete={!readOnly && detailSource === "kanban" ? () => { if (detail) { setDetail(null); setDetailSource(null); setError(""); setDeleting(detail); } } : undefined} />
     {!readOnly && <CreateDialog title={editor ? "Editar actividad de desarrollo" : "Crear actividad de desarrollo"} triggerLabel="Crear actividad" open={editor !== undefined} onOpenChange={(open) => { if (!open && !pending) setEditor(undefined); }} busy={pending} showTrigger={false}>
       <ActivityForm projectId={projectId} initial={editor ?? undefined} stages={stages} modules={modules} teamMembers={teamMembers} developmentOnly onSaved={saved} onPendingChange={setPending} />
     </CreateDialog>}

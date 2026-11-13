@@ -6,6 +6,7 @@ export * from "../modules/companies/schema";
 export * from "../modules/audit/schema";
 export * from "../modules/access/schema";
 export * from "../modules/calendar/schema";
+export * from "../modules/mail/schema";
 
 // Bootstrap table for validating migrations. Business tables are added by their module.
 export const appMetadata = pgTable("app_metadata", {

@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { SignInForm } from "./sign-in-form";
 import { LoginWaveBackground } from "./login-wave-background";
 
-export default async function SignInPage() {
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ passwordReset?: string }> }) {
+  const { passwordReset } = await searchParams;
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect("/dashboard");
 
@@ -18,6 +19,7 @@ export default async function SignInPage() {
         </div>
         <h1 id="sign-in-title" className="text-2xl font-semibold text-ink sm:text-3xl">Bienvenido</h1>
         <p className="mt-2 text-sm leading-6 text-muted">Ingresa con las credenciales asignadas por el administrador.</p>
+        {passwordReset === "success" && <p role="status" className="mt-4 rounded-lg border border-line bg-surface-muted px-3 py-2 text-sm text-ink">La contraseña se cambió. Ya puedes iniciar sesión con la nueva.</p>}
         <SignInForm />
       </section>
     </main>

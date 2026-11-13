@@ -8,6 +8,7 @@ import { activity, activityResponsible, developmentStage, projectAuditEvent } fr
 import { auditEvent } from "@/modules/audit/schema";
 import { activityInput } from "@/modules/projects/validation";
 import { deletedDetail, updatedDetail } from "@/modules/audit/details";
+import { completionDateTimestamp } from "@/modules/projects/activity-time";
 
 type Context = { params: Promise<{ id: string; activityId: string }> };
 async function access(request: Request, params: Context) {
@@ -25,7 +26,8 @@ export async function PATCH(request: Request, context: Context) {
   const responsibleMembers = responsibleIds.length ? await db.select({ id: companyTeamMember.id, name: companyTeamMember.name }).from(companyTeamMember).where(and(eq(companyTeamMember.companyId, result.auth.company!.id), inArray(companyTeamMember.id, responsibleIds))) : [];
   if (parsed.data.moduleId && parsed.data.type !== "development") return Response.json({ error: "Solo las actividades de desarrollo pueden relacionarse con un módulo" }, { status: 400 });
   if (parsed.data.moduleId && !await moduleInProject(parsed.data.moduleId, result.id)) return Response.json({ error: "El módulo no pertenece a este proyecto" }, { status: 400 });
-  const activityValues = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key !== "responsibleIds")) as Omit<typeof parsed.data, "responsibleIds">;
+  const { completedDate, ...activityValuesWithDate } = Object.fromEntries(Object.entries(parsed.data).filter(([key]) => key !== "responsibleIds")) as Omit<typeof parsed.data, "responsibleIds">;
+  const activityValues = Object.fromEntries(Object.entries(activityValuesWithDate).filter(([key]) => key !== "completedDate")) as Omit<typeof parsed.data, "responsibleIds" | "completedDate">;
   let developmentTarget: typeof developmentStage.$inferSelect | null = null;
   if (activityValues.type === "development") {
     developmentTarget = activityValues.developmentStageId ? (await db.select().from(developmentStage).where(and(eq(developmentStage.id, activityValues.developmentStageId), eq(developmentStage.companyId, result.auth.company!.id), eq(developmentStage.isActive, true))))[0] ?? null
@@ -38,23 +40,24 @@ export async function PATCH(request: Request, context: Context) {
   const updated = await db.transaction(async (tx) => {
     const [previous] = await tx.select().from(activity).where(and(eq(activity.id, activityId), eq(activity.projectId, projectId)));
     if (!previous) return null;
+    const status = activityValues.type !== "development" ? activityValues.status : developmentTarget?.isCancelled ? "cancelled" : developmentTarget?.isTerminal ? "completed" : previous.status === "cancelled" || previous.status === "completed" ? "pending" : activityValues.status;
+    const isCompleted = activityValues.type !== "development" ? activityValues.status === "completed" : Boolean(developmentTarget?.isTerminal);
+    const completedAt = isCompleted ? completionDateTimestamp(completedDate) ?? (previous.completedAt && (previous.status === "completed" || Boolean(developmentTarget?.isTerminal && previous.developmentStageId === developmentTarget.id)) ? previous.completedAt : new Date()) : null;
     const changes = [
       { label: "Título", before: previous.title, after: activityValues.title },
       { label: "Etapa", before: previous.developmentStageId, after: developmentTarget?.id ?? null },
       { label: "Módulo", before: previous.moduleId, after: activityValues.moduleId },
       { label: "Tipo", before: previous.type, after: activityValues.type },
-      { label: "Estado", before: previous.status, after: activityValues.status },
+      { label: "Estado", before: previous.status, after: status },
       { label: "Prioridad", before: previous.priority, after: activityValues.priority },
       { label: "Fecha de actividad", before: previous.activityDate, after: activityValues.activityDate },
       { label: "Fecha límite", before: previous.dueDate, after: activityValues.dueDate },
-      { label: "Horas", before: previous.hours, after: activityValues.hours },
+      { label: "Horas estimadas", before: previous.hours, after: activityValues.hours },
       { label: "Observaciones", before: previous.observations, after: activityValues.observations },
       { label: "Checklist", before: previous.checklist, after: activityValues.checklist },
       { label: "Origen", before: previous.origin, after: activityValues.origin },
-      { label: "Finalización", before: previous.completedAt?.toISOString() ?? "Sin finalizar", after: developmentTarget?.isTerminal ? (previous.developmentStageId === developmentTarget.id ? previous.completedAt?.toISOString() ?? "Finalizada" : "Finalizada") : "Sin finalizar" },
+      { label: "Finalización", before: previous.completedAt?.toISOString() ?? "Sin finalizar", after: completedAt?.toISOString() ?? "Sin finalizar" },
     ].filter(({ before, after }) => before !== after);
-    const status = activityValues.type !== "development" ? activityValues.status : developmentTarget?.isCancelled ? "cancelled" : developmentTarget?.isTerminal ? "completed" : previous.status === "cancelled" || previous.status === "completed" ? "pending" : activityValues.status;
-    const completedAt = activityValues.type !== "development" || !developmentTarget?.isTerminal ? null : previous.developmentStageId === developmentTarget.id && previous.completedAt ? previous.completedAt : new Date();
     const [item] = await tx.update(activity).set({ ...activityValues, developmentStageId: activityValues.type === "development" ? developmentTarget?.id ?? null : null, status, completedAt, code: `${prefix}-${activityId.slice(0, 8).toUpperCase()}`, updatedAt: new Date() }).where(and(eq(activity.id, activityId), eq(activity.projectId, projectId))).returning();
     if (!item) return null;
     await tx.delete(activityResponsible).where(eq(activityResponsible.activityId, activityId));

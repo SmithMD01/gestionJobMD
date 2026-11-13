@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, pgEnum, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { user } from "../../db/auth-schema";
 import { company, companyTeamMember } from "../companies/schema";
 
@@ -130,7 +130,7 @@ export const activity = pgTable("activity", {
   priority: integer("priority").notNull().default(3),
   activityDate: date("activity_date"),
   dueDate: date("due_date"),
-  hours: integer("hours"),
+  hours: real("hours"),
   observations: text("observations").notNull().default(""),
   checklist: text("checklist").notNull().default(""),
   origin: activityOrigin("origin").notNull().default("manual"),
@@ -138,6 +138,14 @@ export const activity = pgTable("activity", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const activityTimeEntry = pgTable("activity_time_entry", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  activityId: uuid("activity_id").notNull().references(() => activity.id, { onDelete: "cascade" }),
+  minutes: integer("minutes").notNull(),
+  loggedBy: text("logged_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("activity_time_entry_activity_created_idx").on(table.activityId, table.createdAt)]);
 
 export const activityResponsible = pgTable("activity_responsible", {
   activityId: uuid("activity_id").notNull().references(() => activity.id),

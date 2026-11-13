@@ -7,7 +7,7 @@ import { user } from "@/db/auth-schema";
 import { requireReadySession } from "@/lib/require-session";
 import { activeCompanyForPage } from "@/modules/companies/context";
 import { hasModuleAccess } from "@/modules/access/permissions";
-import { activity, developmentStage, project, projectContact, projectDependency, projectDependencyRelation, projectDocument, projectModule, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
+import { activity, activityTimeEntry, developmentStage, project, projectContact, projectDependency, projectDependencyRelation, projectDocument, projectModule, projectSchedule, projectScheduleItem } from "@/modules/projects/schema";
 import { activityResponsiblesInCompany } from "@/modules/projects/access";
 import { ProjectSections } from "../project-sections";
 import type { ProjectScheduleItem as ProjectScheduleItemType } from "../project-schedule";
@@ -56,7 +56,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   }, {});
   const activityIds = activities.map((item) => item.id);
   const responsibleByActivity = await activityResponsiblesInCompany(activityIds, company.id);
-  const activitiesWithResponsibles = activities.map((item) => ({ ...item, responsibleIds: responsibleByActivity.get(item.id)?.ids ?? [], responsibleNames: responsibleByActivity.get(item.id)?.names ?? [] }));
+  const timeRows = activityIds.length ? await db.select({ id: activityTimeEntry.id, activityId: activityTimeEntry.activityId, minutes: activityTimeEntry.minutes, loggedByName: user.name, createdAt: activityTimeEntry.createdAt })
+    .from(activityTimeEntry).innerJoin(user, eq(activityTimeEntry.loggedBy, user.id)).where(inArray(activityTimeEntry.activityId, activityIds)).orderBy(desc(activityTimeEntry.createdAt)) : [];
+  const timeEntriesByActivity = timeRows.reduce<Record<string, typeof timeRows>>((map, entry) => {
+    (map[entry.activityId] ??= []).push(entry);
+    return map;
+  }, {});
+  const activitiesWithResponsibles = activities.map((item) => ({ ...item, responsibleIds: responsibleByActivity.get(item.id)?.ids ?? [], responsibleNames: responsibleByActivity.get(item.id)?.names ?? [], timeEntries: timeEntriesByActivity[item.id] ?? [] }));
   const schedule = scheduleRows[0] ?? null;
   const scheduleItems = schedule ? await db.select().from(projectScheduleItem).where(eq(projectScheduleItem.scheduleId, schedule.id)).orderBy(projectScheduleItem.sortOrder) : [];
 

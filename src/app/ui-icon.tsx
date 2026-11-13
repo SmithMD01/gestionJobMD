@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type IconName = "menu" | "panelClose" | "panelOpen" | "home" | "projects" | "companies" | "users" | "audit" | "roles" | "settings" | "calendar" | "star" | "sessions" | "password" | "shield" | "sun" | "moon" | "logout" | "bell" | "chevronDown" | "more";
+export type IconName = "menu" | "panelClose" | "panelOpen" | "home" | "projects" | "companies" | "users" | "audit" | "mail" | "roles" | "settings" | "calendar" | "star" | "sessions" | "password" | "shield" | "sun" | "moon" | "logout" | "bell" | "chevronDown" | "more";
 
 const drawings: Record<IconName, ReactNode> = {
   menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
@@ -11,6 +11,7 @@ const drawings: Record<IconName, ReactNode> = {
   companies: <><path d="M4 21V7l8-4 8 4v14M2 21h20M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M12 13h.01M16 13h.01" /></>,
   users: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2H3ZM17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5" /></>,
   audit: <><path d="M5 4h14v17H5z" /><path d="M8 8h8M8 12h8M8 16h5" /><path d="M9 2h6v4H9z" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></>,
   roles: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2H3Z" /><path d="m17 12 1.2 1.2 2.8-2.8M17 16h4" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.7-1.4-2.4 1.4-1.1A7 7 0 0 1 7.5 13l-1.8-.5v-2.8l1.8-.3a8 8 0 0 1 .8-1.6l-.7-1.6L10 4.8l1.2 1.4a8 8 0 0 1 1.8 0l1.2-1.4 2.4 1.4-.7 1.6a8 8 0 0 1 .8 1.6l1.8.3v2.8l-1.8.5a7 7 0 0 1-.1 2Z" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,

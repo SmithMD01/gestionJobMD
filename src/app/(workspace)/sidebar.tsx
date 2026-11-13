@@ -36,6 +36,7 @@ export function Sidebar({ role, twoFactorEnabled, moduleAccess, userName, userEm
     { href: "/settings", label: "Configuración", icon: "settings", visible: canAccess("settings") },
     { href: "/calendar", label: "Calendario", icon: "calendar", visible: canAccess("calendar") },
     { href: "/audit", label: "Auditoría", icon: "audit", visible: canAccess("audit") },
+    { href: "/email-logs", label: "Seguimiento de correos", icon: "mail", visible: canAccess("email.logs") },
   ];
   const accountLinks: NavLink[] = [
     { href: "/security/sessions", label: "Mis sesiones", icon: "sessions", visible: true },

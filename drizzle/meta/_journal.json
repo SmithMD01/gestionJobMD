@@ -246,6 +246,27 @@
       "when": 1793830983064,
       "tag": "0034_busy_starbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794591518116,
+      "tag": "0035_email_delivery_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794593011481,
+      "tag": "0036_activity_time_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794593045769,
+      "tag": "0037_activity_time_entry_index",
+      "breakpoints": true
     }
   ]
 }
