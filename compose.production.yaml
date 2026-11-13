@@ -1,0 +1,59 @@
+name: gestionjobmd
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set_POSTGRES_DB_in_.env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set_POSTGRES_USER_in_.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set_BETTER_AUTH_SECRET_in_.env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set_BETTER_AUTH_URL_in_.env}
+    ports:
+      - "127.0.0.1:3010:3000"
+    networks:
+      - private
+
+  maintenance:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+    networks:
+      - private
+
+volumes:
+  postgres_data:
+    name: gestionjobmd_postgres_data
+
+networks:
+  private:
+    name: gestionjobmd_private
